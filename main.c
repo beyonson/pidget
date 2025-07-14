@@ -2,6 +2,10 @@
 #include <stdlib.h>
 
 #include <xcb/xcb.h>
+#include <xcb/xcb_icccm.h>
+
+#define WIDTH 90
+#define HEIGHT 90
 
 void
 print_modifiers (uint32_t mask)
@@ -26,6 +30,7 @@ main ()
   int screen_num;
   uint32_t mask = 0;
   uint32_t valwin[2];
+  xcb_size_hints_t hints;
 
   /* Make connection to X server */
   c = xcb_connect (NULL, &screen_num);
@@ -44,6 +49,10 @@ main ()
   xcb_create_window (c, XCB_COPY_FROM_PARENT, win, screen->root, 0, 0, 150,
                      150, 10, XCB_WINDOW_CLASS_INPUT_OUTPUT,
                      screen->root_visual, mask, valwin);
+
+  xcb_icccm_size_hints_set_max_size(&hints, WIDTH, HEIGHT);
+  xcb_icccm_size_hints_set_min_size(&hints, WIDTH, HEIGHT);
+  xcb_icccm_set_wm_size_hints(c, win, XCB_ATOM_WM_NORMAL_HINTS, &hints);
 
   /* Map the window to our screen */
   xcb_map_window (c, win);

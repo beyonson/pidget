@@ -10,6 +10,6 @@ typedef enum
 } LogLevel;
 
 void set_log_level (LogLevel level);
-void log_message (LogLevel level, const char *text);
+void log_message (LogLevel level, const char *fmt, ...);
 
 #endif // LOGGER_H

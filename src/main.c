@@ -35,7 +35,7 @@ main ()
   xcb_size_hints_t hints;
 
   /* Set up logging */
-  set_log_level(0);
+  set_log_level (0);
 
   /* Make connection to X server */
   c = xcb_connect (NULL, &screen_num);
@@ -56,9 +56,9 @@ main ()
                      screen->root_visual, mask, valwin);
 
   /* Set forced window size */
-  xcb_icccm_size_hints_set_max_size(&hints, WIDTH, HEIGHT);
-  xcb_icccm_size_hints_set_min_size(&hints, WIDTH, HEIGHT);
-  xcb_icccm_set_wm_size_hints(c, win, XCB_ATOM_WM_NORMAL_HINTS, &hints);
+  xcb_icccm_size_hints_set_max_size (&hints, WIDTH, HEIGHT);
+  xcb_icccm_size_hints_set_min_size (&hints, WIDTH, HEIGHT);
+  xcb_icccm_set_wm_size_hints (c, win, XCB_ATOM_WM_NORMAL_HINTS, &hints);
 
   /* Map the window to our screen */
   xcb_map_window (c, win);
@@ -78,7 +78,7 @@ main ()
             xcb_key_press_event_t *ev = (xcb_key_press_event_t *)e;
             print_modifiers (ev->state);
 
-            log_message(0, "Key pressed in window");
+            log_message (0, "Key pressed in window");
             break;
           }
         case XCB_KEY_RELEASE:

@@ -1,6 +1,6 @@
-#include "logger.h"
+#include <stdarg.h>
 #include <stdio.h>
-#include <time.h>
+#include "logger.h"
 
 static LogLevel current_log_level = INFO;
 
@@ -11,13 +11,17 @@ set_log_level (LogLevel level)
 }
 
 void
-log_message (LogLevel level, const char *text)
+log_message (LogLevel level, const char *fmt, ...)
 {
   if (level < current_log_level)
     {
       return;
     }
 
+  va_list args;
   const char *level_strings[] = { "DEBUG", "INFO", "WARNING", "ERROR" };
-  printf ("[%s] %s\n", level_strings[level], text);
+
+  va_start (args, fmt);
+  vprintf (fmt, args);
+  va_end (args);
 }

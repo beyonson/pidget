@@ -16,10 +16,10 @@ print_modifiers (uint32_t mask)
       *mods[] = { "Shift",   "Lock",    "Ctrl",   "Alt",     "Mod2",
                   "Mod3",    "Mod4",    "Mod5",   "Button1", "Button2",
                   "Button3", "Button4", "Button5" };
-  printf ("Modifier mask: ");
+  log_message (0, "Modifier mask: ");
   for (mod = mods; mask; mask >>= 1, mod++)
     if (mask & 1)
-      printf (*mod);
+      log_message (0, *mod);
   putchar ('\n');
 }
 
@@ -77,19 +77,18 @@ main ()
           {
             xcb_key_press_event_t *ev = (xcb_key_press_event_t *)e;
             print_modifiers (ev->state);
-
-            log_message (0, "Key pressed in window");
+            log_message (0, "Key pressed in window %ld\n", ev->event);
             break;
           }
         case XCB_KEY_RELEASE:
           {
             xcb_key_release_event_t *ev = (xcb_key_release_event_t *)e;
-            printf ("Key was released\n");
+            log_message (0, "Key released in window %ld\n", ev->event);
             break;
           }
         default:
           /* Unknown event type, ignore it */
-          printf ("Unknown event: %d\n", e->response_type);
+          log_message (0, "Unknown event: %d\n", e->response_type);
           break;
         }
       free (e);

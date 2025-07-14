@@ -1,6 +1,6 @@
+#include "logger.h"
 #include <stdarg.h>
 #include <stdio.h>
-#include "logger.h"
 
 static LogLevel current_log_level = INFO;
 

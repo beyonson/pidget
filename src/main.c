@@ -4,6 +4,8 @@
 #include <xcb/xcb.h>
 #include <xcb/xcb_icccm.h>
 
+#include "logger.h"
+
 #define WIDTH 90
 #define HEIGHT 90
 
@@ -32,6 +34,9 @@ main ()
   uint32_t valwin[2];
   xcb_size_hints_t hints;
 
+  /* Set up logging */
+  set_log_level(0);
+
   /* Make connection to X server */
   c = xcb_connect (NULL, &screen_num);
 
@@ -50,6 +55,7 @@ main ()
                      150, 10, XCB_WINDOW_CLASS_INPUT_OUTPUT,
                      screen->root_visual, mask, valwin);
 
+  /* Set forced window size */
   xcb_icccm_size_hints_set_max_size(&hints, WIDTH, HEIGHT);
   xcb_icccm_size_hints_set_min_size(&hints, WIDTH, HEIGHT);
   xcb_icccm_set_wm_size_hints(c, win, XCB_ATOM_WM_NORMAL_HINTS, &hints);
@@ -72,7 +78,7 @@ main ()
             xcb_key_press_event_t *ev = (xcb_key_press_event_t *)e;
             print_modifiers (ev->state);
 
-            printf ("Key pressed in window %ld\n", ev->event);
+            log_message(0, "Key pressed in window");
             break;
           }
         case XCB_KEY_RELEASE:

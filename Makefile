@@ -1,19 +1,27 @@
 CC=gcc
-CFLAGS=-Wall `pkg-config --cflags --libs xcb-icccm`
+IDIR=include
+SDIR=src
 ODIR=build
 
+CFLAGS=-Wall `pkg-config --cflags --libs xcb-icccm` -I$(IDIR)
 CLANG_FORMAT := clang-format -i --style=GNU
 
-SRC = $(shell find . -name *.c)
-OBJ = $(patsubst %.c,$(ODIR)/%.o, $(SRC))
+SRC = $(shell find ./src -name *.c)
 
-$(ODIR)/%.o: $(SRC)
+_OBJ = main.o logger.o
+OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
+
+_DEPS = logger.h
+DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
+
+$(ODIR)/%.o: $(SDIR)/%.c $(DEPS)
 	@mkdir -p build
 	$(CC) -o $@ -c $< $(CFLAGS)
 
+
 $(ODIR)/main: $(OBJ)
 	@mkdir -p build
-	$(CC) -o $@ $< $(CFLAGS)
+	$(CC) -o $@ $^ $(CFLAGS)
 
 .PHONY: format
 format:

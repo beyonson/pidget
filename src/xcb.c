@@ -6,8 +6,8 @@
 #include <xcb/xcb.h>
 #include <xcb/xcb_icccm.h>
 
-#define WIDTH 90
-#define HEIGHT 90
+#define WIDTH 200
+#define HEIGHT 200
 
 typedef struct MotifHints
 {
@@ -18,7 +18,7 @@ typedef struct MotifHints
   uint32_t status;
 } MotifHints;
 
-void
+static void
 print_modifiers (uint32_t mask)
 {
   const char **mod,
@@ -89,16 +89,23 @@ xcb_init (xcb_connection_t *c)
   xcb_intern_atom_reply_t *motif_reply
       = xcb_intern_atom_reply (c, motif_cookie, NULL);
 
-  /* Create the window */
+  /* Set window attributes */
+  /* NOTE: Indices of win_events must align with mask according to xcb_cw_t */
   mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-  /* Indices of win_events must align with mask according to xcb_cw_t */
-  valwin[0] = screen->white_pixel;
+  valwin[0] = 0x09224A;
   valwin[1] = XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_KEY_PRESS;
+  const uint32_t border_width[] = { 5 };
+  const uint32_t border_color[] = { 0xAAAAAA };
+
+  /* Create the window */
   xcb_create_window (c, XCB_COPY_FROM_PARENT, win, screen->root, 0, 0, 150,
-                     150, 10, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+                     150, 100, XCB_WINDOW_CLASS_INPUT_OUTPUT,
                      screen->root_visual, mask, valwin);
 
-  /* Set the type of the window */
+  xcb_change_window_attributes (c, win, XCB_CW_BORDER_PIXEL, border_color);
+  xcb_configure_window (c, win, XCB_CONFIG_WINDOW_BORDER_WIDTH, border_width);
+
+  /* Set motif hints to remove window decorations */
   xcb_change_property (c, XCB_PROP_MODE_REPLACE, win, motif_reply->atom,
                        motif_reply->atom, 32, sizeof (motif_hints),
                        &motif_hints);

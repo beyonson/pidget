@@ -14,9 +14,8 @@ main ()
 
   set_log_level (0);
 
-  /* Make connection to X server */
+  /* Make connection to X server and initialize our window */
   c = xcb_connect (NULL, &screen_num);
-
   win = xcb_init (c);
 
   /* Map the window to our screen */

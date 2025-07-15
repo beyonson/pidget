@@ -19,7 +19,6 @@ log_message (LogLevel level, const char *fmt, ...)
     }
 
   va_list args;
-  const char *level_strings[] = { "DEBUG", "INFO", "WARNING", "ERROR" };
 
   va_start (args, fmt);
   vprintf (fmt, args);

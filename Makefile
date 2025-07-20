@@ -3,7 +3,7 @@ IDIR=include
 SDIR=src
 ODIR=build
 
-CFLAGS=-Wall `pkg-config --cflags --libs xcb-icccm` -I$(IDIR)
+CFLAGS=-Wall `pkg-config --cflags --libs xcb-icccm libpng` -I$(IDIR)
 CLANG_FORMAT := clang-format -i --style=GNU
 
 SRC = $(shell find ./src -name *.c)

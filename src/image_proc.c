@@ -4,14 +4,12 @@
 
 #define PNG_SIG_CMP_BYTES 4
 
-int width, height;
-png_byte color_type;
-png_byte bit_depth;
-png_bytep *row_pointers = NULL;
-
 int
-read_png_file (char *filename)
+read_png_file (char *filename, png_bytepp *row_pointers)
 {
+  int width, height, bit_depth, color_type;
+  int png_transforms = PNG_TRANSFORM_STRIP_16;
+
   FILE *fp = fopen (filename, "rb");
   if (!fp)
     {
@@ -50,27 +48,45 @@ read_png_file (char *filename)
       png_destroy_read_struct (&png_ptr, &info_ptr, (png_infopp)NULL);
       return 1;
     }
+
   /* TODO: Either setjmp here or add compiler flag PNG_SETJMP_NOT_SUPPORTED */
+  if (setjmp (png_jmpbuf (png_ptr)))
+    abort ();
 
   /* Add back signature bytes that we checked */
-  int height, width, depth;
   png_set_sig_bytes (png_ptr, PNG_SIG_CMP_BYTES);
 
   png_init_io (png_ptr, fp);
 
-  int png_transforms = PNG_TRANSFORM_STRIP_16;
-  png_read_png (png_ptr, info_ptr, png_transforms, NULL);
+  png_read_info (png_ptr, info_ptr);
 
-  height = png_get_image_height (png_ptr, info_ptr);
   width = png_get_image_width (png_ptr, info_ptr);
-  depth = png_get_bit_depth (png_ptr, info_ptr);
+  height = png_get_image_height (png_ptr, info_ptr);
+  color_type = png_get_color_type (png_ptr, info_ptr);
+  bit_depth = png_get_bit_depth (png_ptr, info_ptr);
 
-  printf ("Image stats:\n");
-  printf ("Height: %d\n", height);
-  printf ("Width: %d\n", width);
-  printf ("Depth: %d\n", depth);
+  if (bit_depth == 16)
+    png_set_strip_16 (png_ptr);
+
+  png_read_update_info (png_ptr, info_ptr);
+
+  if (*row_pointers)
+    abort ();
+
+  *row_pointers = (png_bytep *)malloc (sizeof (png_bytep) * height);
+  for (int y = 0; y < height; y++)
+    {
+      (*row_pointers)[y]
+          = (png_byte *)malloc (png_get_rowbytes (png_ptr, info_ptr));
+    }
+
+  png_read_image (png_ptr, *row_pointers);
+
+  png_read_end (png_ptr, info_ptr);
 
   fclose (fp);
+
+  png_destroy_read_struct (&png_ptr, &info_ptr, NULL);
 
   return 0;
 }

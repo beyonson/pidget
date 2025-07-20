@@ -1,3 +1,4 @@
+#include "image_proc.c"
 #include "logger.h"
 #include "xcb.c"
 #include <assert.h>
@@ -13,6 +14,14 @@ main ()
   int screen_num;
 
   set_log_level (0);
+
+  /* Load frog PNG file */
+  png_bytep *row_pointers = NULL;
+  //  if (read_png_file ("frog.png", &row_pointers))
+  //    {
+  //      log_message (3, "Failed to load PNG file");
+  //      return 1;
+  //    }
 
   /* Make connection to X server and initialize our window */
   c = xcb_connect (NULL, &screen_num);

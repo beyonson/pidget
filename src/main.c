@@ -12,20 +12,18 @@ main ()
   xcb_connection_t *c;
   xcb_window_t win;
   int screen_num;
+  struct pixel_buffer *png_buffer;
 
   set_log_level (0);
 
   /* Load frog PNG file */
   png_bytep *row_pointers = NULL;
-  //  if (read_png_file ("frog.png", &row_pointers))
-  //    {
-  //      log_message (3, "Failed to load PNG file");
-  //      return 1;
-  //    }
+  png_buffer = malloc (sizeof (pixel_buffer));
+  *png_buffer = read_png_file ("frog.png", &row_pointers);
 
   /* Make connection to X server and initialize our window */
   c = xcb_connect (NULL, &screen_num);
-  win = xcb_init (c);
+  win = xcb_init (c, png_buffer);
 
   /* Map the window to our screen */
   xcb_map_window (c, win);
@@ -63,6 +61,9 @@ main ()
     }
 
   xcb_disconnect (c);
+
+  free (row_pointers);
+  free (png_buffer);
 
   return 0;
 }

@@ -1,5 +1,6 @@
 #include "logger.h"
 #include <assert.h>
+#include <png.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,7 +62,7 @@ get_atom (xcb_connection_t *conn, const char *name)
 }
 
 xcb_window_t
-xcb_init (xcb_connection_t *c)
+xcb_init (xcb_connection_t *c, struct pixel_buffer* png_buffer)
 {
   xcb_window_t win;
   xcb_size_hints_t hints;
@@ -115,6 +116,29 @@ xcb_init (xcb_connection_t *c)
   xcb_icccm_size_hints_set_max_size (&hints, WIDTH, HEIGHT);
   xcb_icccm_size_hints_set_min_size (&hints, WIDTH, HEIGHT);
   xcb_icccm_set_wm_size_hints (c, win, XCB_ATOM_WM_NORMAL_HINTS, &hints);
+
+  /* Create backing pixmap */
+  xcb_gcontext_t gc;
+  xcb_pixmap_t backing_pixmap;
+  uint32_t values[] = {screen->black_pixel, screen->white_pixel};
+
+  backing_pixmap = xcb_generate_id(c);
+  xcb_create_pixmap(c, screen->root_depth, backing_pixmap, win, png_buffer->width, png_buffer->height);
+
+  gc = xcb_generate_id(c);
+  xcb_create_gc(c, gc, backing_pixmap, XCB_GC_FOREGROUND | XCB_GC_BACKGROUND, values);
+
+  //printf("Height: %d\n", png_buffer->height);
+  //printf("Width: %d\n", png_buffer->width);
+
+  /* Send image data to X server */
+  xcb_put_image(c, XCB_IMAGE_FORMAT_Z_PIXMAP, backing_pixmap,
+                gc, png_buffer->width, png_buffer->height, 0, 0, 0,
+                screen->root_depth, png_buffer->bytes_per_row * png_buffer->height,
+                png_buffer->pixels);
+
+  /* Copy updated data to window */
+  xcb_copy_area(c, backing_pixmap, win, gc, 0, 0, 0, 0, png_buffer->width, png_buffer->height);
 
   return win;
 }

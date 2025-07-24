@@ -1,5 +1,6 @@
+#include "image_proc.h"
 #include "logger.h"
-#include "xcb.c"
+#include "xcb.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,13 +12,17 @@ main ()
   xcb_connection_t *c;
   xcb_window_t win;
   int screen_num;
+  struct PixelBuffer png_buffer;
 
   set_log_level (0);
 
-  /* Make connection to X server */
-  c = xcb_connect (NULL, &screen_num);
+  /* Load frog PNG file */
+  png_bytep *row_pointers = NULL;
+  read_png_file ("frog.png", &row_pointers, &png_buffer);
 
-  win = xcb_init (c);
+  /* Make connection to X server and initialize our window */
+  c = xcb_connect (NULL, &screen_num);
+  win = xcb_init (c, png_buffer);
 
   /* Map the window to our screen */
   xcb_map_window (c, win);
@@ -28,29 +33,9 @@ main ()
   /* Event loop */
   /* TODO: Use libev for event loop */
   xcb_generic_event_t *e;
-
   while ((e = xcb_wait_for_event (c)))
     {
-      switch (e->response_type & ~0x80)
-        {
-        case XCB_KEY_PRESS:
-          {
-            xcb_key_press_event_t *ev = (xcb_key_press_event_t *)e;
-            print_modifiers (ev->state);
-            log_message (0, "Key pressed in window %ld\n", ev->event);
-            break;
-          }
-        case XCB_KEY_RELEASE:
-          {
-            xcb_key_release_event_t *ev = (xcb_key_release_event_t *)e;
-            log_message (0, "Key released in window %ld\n", ev->event);
-            break;
-          }
-        default:
-          /* Unknown event type, ignore it */
-          log_message (0, "Unknown event: %d\n", e->response_type);
-          break;
-        }
+      handle_event (c, win, e);
       free (e);
     }
 

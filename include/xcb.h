@@ -27,7 +27,7 @@ xcb_visualtype_t *
 find_argb_visual (xcb_connection_t *conn, xcb_screen_t *screen);
 
 xcb_window_t
-xcb_init (xcb_connection_t *c, struct pixel_buffer png_buffer);
+xcb_init (xcb_connection_t *c, struct PixelBuffer png_buffer);
 
 xcb_atom_t
 get_atom (xcb_connection_t *conn, const char *name);

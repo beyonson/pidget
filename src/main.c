@@ -12,13 +12,13 @@ main ()
   xcb_connection_t *c;
   xcb_window_t win;
   int screen_num;
-  struct pixel_buffer png_buffer;
+  struct PixelBuffer png_buffer;
 
   set_log_level (0);
 
   /* Load frog PNG file */
   png_bytep *row_pointers = NULL;
-  png_buffer = read_png_file ("frog.png", &row_pointers);
+  read_png_file ("frog.png", &row_pointers, &png_buffer);
 
   /* Make connection to X server and initialize our window */
   c = xcb_connect (NULL, &screen_num);

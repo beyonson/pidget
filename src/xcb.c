@@ -17,7 +17,6 @@ xcb_pixmap_t backing_pixmap;
 xcb_visualtype_t *
 find_argb_visual (xcb_connection_t *conn, xcb_screen_t *screen)
 {
-  const xcb_setup_t *setup = xcb_get_setup (conn);
   xcb_depth_iterator_t d_iter = xcb_screen_allowed_depths_iterator (screen);
 
   for (; d_iter.rem; xcb_depth_next (&d_iter))
@@ -37,7 +36,7 @@ find_argb_visual (xcb_connection_t *conn, xcb_screen_t *screen)
 }
 
 xcb_window_t
-xcb_init (xcb_connection_t *c, struct pixel_buffer png_buffer)
+xcb_init (xcb_connection_t *c, struct PixelBuffer png_buffer)
 {
   xcb_window_t win;
   xcb_screen_t *screen;
@@ -137,8 +136,6 @@ xcb_init (xcb_connection_t *c, struct pixel_buffer png_buffer)
       log_message (3, "No image\n");
     }
 
-  uint32_t gc_mask = 0;
-  xcb_params_gc_t gcv;
   uint32_t values[] = { screen->white_pixel, screen->white_pixel, 0 };
 
   backing_pixmap = xcb_generate_id (c);
@@ -214,18 +211,19 @@ handle_event (xcb_connection_t *c, xcb_window_t win, xcb_generic_event_t *e)
       }
     case XCB_KEY_PRESS:
       {
-        xcb_key_press_event_t *ev = (xcb_key_press_event_t *)e;
+        /* Add handling code */
         break;
       }
     case XCB_KEY_RELEASE:
       {
-        xcb_key_release_event_t *ev = (xcb_key_release_event_t *)e;
+        /* Add handling code */
         break;
       }
     case XCB_EXPOSE:
       {
         xcb_expose_event_t *ev = (xcb_expose_event_t *)e;
-        xcb_copy_area (c, backing_pixmap, win, gc, 0, 0, 0, 0, WIDTH, HEIGHT);
+        xcb_copy_area (c, backing_pixmap, win, gc, 0, 0, 0, 0, ev->width,
+                       ev->height);
         xcb_flush (c);
         break;
       }

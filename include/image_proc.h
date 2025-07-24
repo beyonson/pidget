@@ -5,7 +5,7 @@
 
 #define PNG_SIG_CMP_BYTES 4
 
-struct pixel_buffer
+struct PixelBuffer 
 {
   int width;
   int height;
@@ -14,7 +14,7 @@ struct pixel_buffer
   void *pixels;
 };
 
-struct pixel_buffer
-read_png_file (char *filename, png_bytepp *row_pointers);
+int
+read_png_file (char *filename, png_bytepp *row_pointers, struct PixelBuffer *png_buffer);
 
 #endif // IMAGE_PROC_H

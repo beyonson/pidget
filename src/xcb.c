@@ -6,9 +6,13 @@
 #include <string.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_icccm.h>
+#include <xcb/xcb_image.h>
 
-#define WIDTH 200
-#define HEIGHT 200
+#define WIDTH 409
+#define HEIGHT 450
+
+xcb_gcontext_t gc;
+xcb_pixmap_t backing_pixmap;
 
 typedef struct MotifHints
 {
@@ -26,10 +30,10 @@ print_modifiers (uint32_t mask)
       *mods[] = { "Shift",   "Lock",    "Ctrl",   "Alt",     "Mod2",
                   "Mod3",    "Mod4",    "Mod5",   "Button1", "Button2",
                   "Button3", "Button4", "Button5" };
-  log_message (0, "Modifier mask: ");
   for (mod = mods; mask; mask >>= 1, mod++)
     if (mask & 1)
-      log_message (0, *mod);
+      {
+      }
   putchar ('\n');
 }
 
@@ -61,12 +65,45 @@ get_atom (xcb_connection_t *conn, const char *name)
   return ret;
 }
 
+void
+handle_event (xcb_connection_t *c, xcb_window_t win, xcb_generic_event_t *e)
+{
+  switch (e->response_type)
+    {
+    case XCB_KEY_PRESS:
+      {
+        xcb_key_press_event_t *ev = (xcb_key_press_event_t *)e;
+        print_modifiers (ev->state);
+        log_message (0, "Key pressed in window %ld\n", ev->event);
+        break;
+      }
+    case XCB_KEY_RELEASE:
+      {
+        xcb_key_release_event_t *ev = (xcb_key_release_event_t *)e;
+        log_message (0, "Key released in window %ld\n", ev->event);
+        break;
+      }
+    case XCB_EXPOSE:
+      {
+        xcb_expose_event_t *ev = (xcb_expose_event_t *)e;
+        xcb_copy_area (c, backing_pixmap, win, gc, 0, 0, 0, 0, WIDTH, HEIGHT);
+        xcb_flush (c);
+        break;
+      }
+    default:
+      /* Unknown event type, ignore it */
+      log_message (0, "Unknown event: %d\n", e->response_type);
+      break;
+    }
+}
+
 xcb_window_t
-xcb_init (xcb_connection_t *c, struct pixel_buffer* png_buffer)
+xcb_init (xcb_connection_t *c, struct pixel_buffer png_buffer)
 {
   xcb_window_t win;
   xcb_size_hints_t hints;
   xcb_screen_t *screen;
+  xcb_image_t *image;
   uint32_t mask = 0;
   uint32_t valwin[2];
 
@@ -94,9 +131,10 @@ xcb_init (xcb_connection_t *c, struct pixel_buffer* png_buffer)
   /* NOTE: Indices of win_events must align with mask according to xcb_cw_t */
   mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
   valwin[0] = 0x09224A;
-  valwin[1] = XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_KEY_PRESS;
+  valwin[1] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_RELEASE
+              | XCB_EVENT_MASK_KEY_PRESS;
   const uint32_t border_width[] = { 5 };
-  const uint32_t border_color[] = { 0xAAAAAA };
+  const uint32_t border_color[] = { 0x09224A };
 
   /* Create the window */
   xcb_create_window (c, XCB_COPY_FROM_PARENT, win, screen->root, 0, 0, 150,
@@ -118,27 +156,50 @@ xcb_init (xcb_connection_t *c, struct pixel_buffer* png_buffer)
   xcb_icccm_set_wm_size_hints (c, win, XCB_ATOM_WM_NORMAL_HINTS, &hints);
 
   /* Create backing pixmap */
-  xcb_gcontext_t gc;
-  xcb_pixmap_t backing_pixmap;
-  uint32_t values[] = {screen->black_pixel, screen->white_pixel};
+  png_bytep *rows = (png_bytep *)png_buffer.pixels;
+  uint8_t frog_bytes[png_buffer.width * png_buffer.height * 4];
 
-  backing_pixmap = xcb_generate_id(c);
-  xcb_create_pixmap(c, screen->root_depth, backing_pixmap, win, png_buffer->width, png_buffer->height);
+  int counter = 0;
+  for (int y = 0; y < png_buffer.height; y++)
+    {
+      png_bytep row = rows[y]; // row is png_byte *
+      for (int x = 0; x < png_buffer.bytes_per_row; x++)
+        {
+          frog_bytes[counter] = row[x];
+          counter += 1;
+        }
+    }
 
-  gc = xcb_generate_id(c);
-  xcb_create_gc(c, gc, backing_pixmap, XCB_GC_FOREGROUND | XCB_GC_BACKGROUND, values);
+  image = xcb_image_create_native (
+      c, png_buffer.width, png_buffer.height, XCB_IMAGE_FORMAT_Z_PIXMAP,
+      screen->root_depth, (uint8_t *)frog_bytes,
+      png_buffer.width * png_buffer.height * 4, (uint8_t *)frog_bytes);
 
-  //printf("Height: %d\n", png_buffer->height);
-  //printf("Width: %d\n", png_buffer->width);
+  if (!image)
+    {
+      log_message (3, "No image\n");
+    }
+
+  //  xcb_create_pixmap (c, screen->root_depth, backing_pixmap, win,
+  //                     png_buffer.width, png_buffer.height);
+  backing_pixmap = xcb_create_pixmap_from_bitmap_data (
+      c, win, frog_bytes, png_buffer.width, png_buffer.height,
+      screen->root_depth, screen->black_pixel, screen->white_pixel, NULL);
+
+  gc = xcb_generate_id (c);
+
+  uint32_t values[] = { screen->black_pixel, screen->white_pixel, 0 };
+
+  xcb_create_gc (c, gc, win,
+                 XCB_GC_FOREGROUND | XCB_GC_BACKGROUND
+                     | XCB_GC_GRAPHICS_EXPOSURES,
+                 values);
+
+  xcb_image_put (c, backing_pixmap, gc, image, 0, 0, 0);
 
   /* Send image data to X server */
-  xcb_put_image(c, XCB_IMAGE_FORMAT_Z_PIXMAP, backing_pixmap,
-                gc, png_buffer->width, png_buffer->height, 0, 0, 0,
-                screen->root_depth, png_buffer->bytes_per_row * png_buffer->height,
-                png_buffer->pixels);
-
-  /* Copy updated data to window */
-  xcb_copy_area(c, backing_pixmap, win, gc, 0, 0, 0, 0, png_buffer->width, png_buffer->height);
+  xcb_copy_area (c, backing_pixmap, win, gc, 0, 0, 0, 0, png_buffer.width,
+                 png_buffer.height);
 
   return win;
 }

@@ -1,23 +1,23 @@
+#include <logger.h>
 #include <png.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #define PNG_SIG_CMP_BYTES 4
 
-struct pixel_buffer {
+struct pixel_buffer
+{
   int width;
   int height;
   int bit_depth;
   int bytes_per_row;
   void *pixels;
-} pixel_buffer;
+};
 
 struct pixel_buffer
 read_png_file (char *filename, png_bytepp *row_pointers)
 {
   struct pixel_buffer png_buffer;
-  int width, height, bit_depth;
-  int png_transforms = PNG_TRANSFORM_STRIP_16;
 
   FILE *fp = fopen (filename, "rb");
   if (!fp)
@@ -35,7 +35,7 @@ read_png_file (char *filename, png_bytepp *row_pointers)
   if (!is_png)
     {
       fclose (fp);
-      printf("File loaded is not a PNG\n");
+      log_message (3, "File loaded is not a PNG\n");
       return png_buffer;
     }
 
@@ -74,34 +74,33 @@ read_png_file (char *filename, png_bytepp *row_pointers)
   png_buffer.height = png_get_image_height (png_ptr, info_ptr);
   png_buffer.bit_depth = png_get_bit_depth (png_ptr, info_ptr);
 
-  if (png_buffer.bit_depth == 16)
-    png_set_strip_16 (png_ptr);
+  log_message (0, "Image width: %d\n", png_buffer.width);
+  log_message (0, "Image height: %d\n", png_buffer.height);
+  log_message (0, "Image depth: %d\n", png_buffer.bit_depth);
 
   png_read_update_info (png_ptr, info_ptr);
 
   if (*row_pointers)
     abort ();
 
-  *row_pointers = (png_bytep *)malloc (sizeof (png_bytep) * height);
-  for (int y = 0; y < height; y++)
+  *row_pointers = (png_bytep *)malloc (sizeof (png_bytep) * png_buffer.height);
+  for (int y = 0; y < png_buffer.height; y++)
     {
       (*row_pointers)[y]
           = (png_byte *)malloc (png_get_rowbytes (png_ptr, info_ptr));
     }
   png_buffer.bytes_per_row = png_get_rowbytes (png_ptr, info_ptr);
+  log_message (0, "Image bytes_per_row: %d\n", png_buffer.bytes_per_row);
 
   png_read_image (png_ptr, *row_pointers);
 
   png_read_end (png_ptr, info_ptr);
 
-  png_buffer.pixels = *row_pointers;
+  png_buffer.pixels = (void *)*row_pointers;
 
   fclose (fp);
 
   png_destroy_read_struct (&png_ptr, &info_ptr, NULL);
-
-  printf("Height: %d\n", png_buffer.height);
-  printf("Width: %d\n", png_buffer.width);
 
   return png_buffer;
 }

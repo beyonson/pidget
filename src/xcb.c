@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <xcb/xcb.h>
+#include <xcb/xcb_aux.h>
+#include <xcb/xcb_errors.h>
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_image.h>
 
@@ -30,9 +32,11 @@ print_modifiers (uint32_t mask)
       *mods[] = { "Shift",   "Lock",    "Ctrl",   "Alt",     "Mod2",
                   "Mod3",    "Mod4",    "Mod5",   "Button1", "Button2",
                   "Button3", "Button4", "Button5" };
+  log_message (0, "Modifier mask: ");
   for (mod = mods; mask; mask >>= 1, mod++)
     if (mask & 1)
       {
+        log_message (0, *mod);
       }
   putchar ('\n');
 }
@@ -70,6 +74,23 @@ handle_event (xcb_connection_t *c, xcb_window_t win, xcb_generic_event_t *e)
 {
   switch (e->response_type)
     {
+    case 0:
+      {
+        xcb_generic_error_t *err = (xcb_generic_error_t *)e;
+        xcb_errors_context_t *err_ctx;
+        xcb_errors_context_new (c, &err_ctx);
+        const char *major, *minor, *extension, *error;
+        major = xcb_errors_get_name_for_major_code (err_ctx, err->major_code);
+        minor = xcb_errors_get_name_for_minor_code (err_ctx, err->major_code,
+                                                    err->minor_code);
+        error = xcb_errors_get_name_for_error (err_ctx, err->error_code,
+                                               &extension);
+        printf ("XCB Error: %s:%s, %s:%s, resource %u sequence %u\n", error,
+                extension ? extension : "no_extension", major,
+                minor ? minor : "no_minor", (unsigned int)err->resource_id,
+                (unsigned int)err->sequence);
+        xcb_errors_context_free (err_ctx);
+      }
     case XCB_KEY_PRESS:
       {
         xcb_key_press_event_t *ev = (xcb_key_press_event_t *)e;
@@ -97,15 +118,33 @@ handle_event (xcb_connection_t *c, xcb_window_t win, xcb_generic_event_t *e)
     }
 }
 
+xcb_visualtype_t *
+find_argb_visual (xcb_connection_t *conn, xcb_screen_t *screen)
+{
+  const xcb_setup_t *setup = xcb_get_setup (conn);
+  xcb_depth_iterator_t d_iter = xcb_screen_allowed_depths_iterator (screen);
+
+  for (; d_iter.rem; xcb_depth_next (&d_iter))
+    {
+      if (d_iter.data->depth == 32)
+        {
+          xcb_visualtype_iterator_t v_iter
+              = xcb_depth_visuals_iterator (d_iter.data);
+          for (; v_iter.rem; xcb_visualtype_next (&v_iter))
+            {
+              if (v_iter.data->_class == XCB_VISUAL_CLASS_TRUE_COLOR)
+                return v_iter.data;
+            }
+        }
+    }
+  return NULL;
+}
+
 xcb_window_t
 xcb_init (xcb_connection_t *c, struct pixel_buffer png_buffer)
 {
   xcb_window_t win;
-  xcb_size_hints_t hints;
   xcb_screen_t *screen;
-  xcb_image_t *image;
-  uint32_t mask = 0;
-  uint32_t valwin[2];
 
   struct MotifHints motif_hints;
 
@@ -129,17 +168,39 @@ xcb_init (xcb_connection_t *c, struct pixel_buffer png_buffer)
 
   /* Set window attributes */
   /* NOTE: Indices of win_events must align with mask according to xcb_cw_t */
-  mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-  valwin[0] = 0x09224A;
-  valwin[1] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_RELEASE
-              | XCB_EVENT_MASK_KEY_PRESS;
+  // uint32_t mask = 0;
+  //  uint32_t valwin[2];
+  //  //mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
+  //  valwin[0] = 0x09224A;
+  //  valwin[1] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_RELEASE
+  //              | XCB_EVENT_MASK_KEY_PRESS;
   const uint32_t border_width[] = { 5 };
-  const uint32_t border_color[] = { 0x09224A };
+  const uint32_t border_color[] = { 0xFF09224A };
+
+  xcb_visualtype_t *argb_visual = find_argb_visual (c, screen);
+
+  if (!argb_visual)
+    {
+      fprintf (stderr, "No ARGB visual found\n");
+      exit (1);
+    }
+
+  xcb_colormap_t colormap = xcb_generate_id (c);
+  xcb_create_colormap (c, XCB_COLORMAP_ALLOC_NONE, colormap, screen->root,
+                       argb_visual->visual_id);
+
+  win = xcb_generate_id (c);
+  uint32_t mask = XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL | XCB_CW_COLORMAP;
+  uint32_t valwin[] = { 0xFF000000, 0x000000000, colormap };
+
+  xcb_create_window (c, 32, win, screen->root, 0, 0, png_buffer.width,
+                     png_buffer.height, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+                     argb_visual->visual_id, mask, valwin);
 
   /* Create the window */
-  xcb_create_window (c, XCB_COPY_FROM_PARENT, win, screen->root, 0, 0, 150,
-                     150, 100, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-                     screen->root_visual, mask, valwin);
+  // xcb_create_window (c, XCB_COPY_FROM_PARENT, win, screen->root, 0, 0, 150,
+  //                    150, 100, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+  //                    screen->root_visual, mask, valwin);
 
   xcb_change_window_attributes (c, win, XCB_CW_BORDER_PIXEL, border_color);
   xcb_configure_window (c, win, XCB_CONFIG_WINDOW_BORDER_WIDTH, border_width);
@@ -151,6 +212,8 @@ xcb_init (xcb_connection_t *c, struct pixel_buffer png_buffer)
   free (motif_reply);
 
   /* Set forced window size */
+  xcb_size_hints_t hints;
+
   xcb_icccm_size_hints_set_max_size (&hints, WIDTH, HEIGHT);
   xcb_icccm_size_hints_set_min_size (&hints, WIDTH, HEIGHT);
   xcb_icccm_set_wm_size_hints (c, win, XCB_ATOM_WM_NORMAL_HINTS, &hints);
@@ -170,25 +233,31 @@ xcb_init (xcb_connection_t *c, struct pixel_buffer png_buffer)
         }
     }
 
+  xcb_image_t *image;
+
   image = xcb_image_create_native (
-      c, png_buffer.width, png_buffer.height, XCB_IMAGE_FORMAT_Z_PIXMAP,
-      screen->root_depth, (uint8_t *)frog_bytes,
-      png_buffer.width * png_buffer.height * 4, (uint8_t *)frog_bytes);
+      c, png_buffer.width, png_buffer.height, XCB_IMAGE_FORMAT_Z_PIXMAP, 32,
+      (uint8_t *)frog_bytes, png_buffer.width * png_buffer.height * 4,
+      (uint8_t *)frog_bytes);
 
   if (!image)
     {
       log_message (3, "No image\n");
     }
 
-  //  xcb_create_pixmap (c, screen->root_depth, backing_pixmap, win,
-  //                     png_buffer.width, png_buffer.height);
-  backing_pixmap = xcb_create_pixmap_from_bitmap_data (
-      c, win, frog_bytes, png_buffer.width, png_buffer.height,
-      screen->root_depth, screen->black_pixel, screen->white_pixel, NULL);
+  log_message (0, "Frog byte 0-3: %d%d%d%d\n", image->data[0], image->data[0],
+               image->data[2], image->data[3]);
+
+  uint32_t gc_mask = 0;
+  xcb_params_gc_t gcv;
+  uint32_t values[] = { screen->white_pixel, screen->white_pixel, 0 };
+
+  backing_pixmap = xcb_generate_id (c);
+
+  xcb_create_pixmap (c, 32, backing_pixmap, win, png_buffer.width,
+                     png_buffer.height);
 
   gc = xcb_generate_id (c);
-
-  uint32_t values[] = { screen->black_pixel, screen->white_pixel, 0 };
 
   xcb_create_gc (c, gc, win,
                  XCB_GC_FOREGROUND | XCB_GC_BACKGROUND

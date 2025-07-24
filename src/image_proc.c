@@ -78,6 +78,12 @@ read_png_file (char *filename, png_bytepp *row_pointers)
   log_message (0, "Image height: %d\n", png_buffer.height);
   log_message (0, "Image depth: %d\n", png_buffer.bit_depth);
 
+  if (png_get_color_type (png_ptr, info_ptr) == PNG_COLOR_TYPE_RGB_ALPHA)
+    {
+      log_message (0, "Swapping alpha\n");
+      // png_set_swap_alpha(png_ptr);
+    }
+
   png_read_update_info (png_ptr, info_ptr);
 
   if (*row_pointers)
@@ -89,8 +95,9 @@ read_png_file (char *filename, png_bytepp *row_pointers)
       (*row_pointers)[y]
           = (png_byte *)malloc (png_get_rowbytes (png_ptr, info_ptr));
     }
+
   png_buffer.bytes_per_row = png_get_rowbytes (png_ptr, info_ptr);
-  log_message (0, "Image bytes_per_row: %d\n", png_buffer.bytes_per_row);
+  log_message (0, "Image bytes per row: %d\n", png_buffer.bytes_per_row);
 
   png_read_image (png_ptr, *row_pointers);
 

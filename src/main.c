@@ -18,7 +18,7 @@ main ()
 
   /* Load frog PNG file */
   png_bytep *row_pointers = NULL;
-  png_buffer = read_png_file ("square.png", &row_pointers);
+  png_buffer = read_png_file ("frog.png", &row_pointers);
 
   /* Make connection to X server and initialize our window */
   c = xcb_connect (NULL, &screen_num);

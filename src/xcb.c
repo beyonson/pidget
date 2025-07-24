@@ -174,7 +174,7 @@ xcb_init (xcb_connection_t *c, struct pixel_buffer png_buffer)
   //  valwin[0] = 0x09224A;
   //  valwin[1] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_RELEASE
   //              | XCB_EVENT_MASK_KEY_PRESS;
-  const uint32_t border_width[] = { 5 };
+  const uint32_t border_width[] = { 0 };
   const uint32_t border_color[] = { 0xFF09224A };
 
   xcb_visualtype_t *argb_visual = find_argb_visual (c, screen);
@@ -190,8 +190,14 @@ xcb_init (xcb_connection_t *c, struct pixel_buffer png_buffer)
                        argb_visual->visual_id);
 
   win = xcb_generate_id (c);
-  uint32_t mask = XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL | XCB_CW_COLORMAP;
-  uint32_t valwin[] = { 0xFF000000, 0x000000000, colormap };
+  uint32_t mask = XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL | XCB_CW_EVENT_MASK
+                  | XCB_CW_COLORMAP;
+  uint32_t valwin[4];
+  valwin[0] = 0x00000000;
+  valwin[1] = 0x00000000;
+  valwin[2] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_RELEASE
+              | XCB_EVENT_MASK_KEY_PRESS;
+  valwin[3] = colormap;
 
   xcb_create_window (c, 32, win, screen->root, 0, 0, png_buffer.width,
                      png_buffer.height, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,

@@ -1,6 +1,6 @@
-#include "image_proc.c"
+#include "image_proc.h"
 #include "logger.h"
-#include "xcb.c"
+#include "xcb.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

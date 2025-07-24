@@ -41,7 +41,5 @@ main ()
 
   xcb_disconnect (c);
 
-  free (row_pointers);
-
   return 0;
 }

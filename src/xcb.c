@@ -150,6 +150,8 @@ xcb_init (xcb_connection_t *c, struct PixelBuffer png_buffer)
                      | XCB_GC_GRAPHICS_EXPOSURES,
                  values);
 
+  log_message (0, "backing pixmap: %d\n", backing_pixmap);
+
   xcb_image_put (c, backing_pixmap, gc, image, 0, 0, 0);
 
   /* Send image data to X server */
@@ -188,6 +190,50 @@ get_atom (xcb_connection_t *conn, const char *name)
 }
 
 void
+move_window (xcb_connection_t *c, xcb_window_t win, int32_t x, int32_t y)
+{
+  xcb_get_geometry_reply_t *geom;
+  xcb_query_tree_reply_t *tree;
+  xcb_translate_coordinates_reply_t *trans;
+
+  /* You initialize c and win */
+  geom = xcb_get_geometry_reply (c, xcb_get_geometry (c, win), NULL);
+  if (!geom)
+    {
+      log_message (3, "Error: Failed to get geometry reply\n");
+      return;
+    }
+
+  tree = xcb_query_tree_reply (c, xcb_query_tree (c, win), NULL);
+  if (!tree)
+    {
+      log_message (3, "Error: Failed to query tree\n");
+      return;
+    }
+
+  trans = xcb_translate_coordinates_reply (
+      c, xcb_translate_coordinates (c, win, tree->parent, geom->x, geom->y),
+      NULL);
+  if (!trans)
+    {
+      log_message (3, "Error: Failed to get coordinates reply\n");
+      return;
+    }
+
+  uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
+  uint32_t values[] = { trans->dst_x + 10, trans->dst_y + 10 };
+
+  xcb_configure_window (c, win, mask, values);
+  xcb_request_check (c, xcb_configure_window (c, win, mask, values));
+  xcb_flush (c); // Ensure the request is sent to the server
+
+  /* the translated coordinates are in trans->dst_x and trans->dst_y */
+  free (trans);
+  free (tree);
+  free (geom);
+}
+
+void
 handle_event (xcb_connection_t *c, xcb_window_t win, xcb_generic_event_t *e)
 {
   switch (e->response_type)
@@ -217,6 +263,9 @@ handle_event (xcb_connection_t *c, xcb_window_t win, xcb_generic_event_t *e)
     case XCB_KEY_RELEASE:
       {
         /* Add handling code */
+        xcb_key_release_event_t *ev = (xcb_key_release_event_t *)e;
+        move_window (c, win, ev->root_x, ev->root_y);
+        xcb_flush (c);
         break;
       }
     case XCB_EXPOSE:

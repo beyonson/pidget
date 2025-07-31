@@ -9,10 +9,9 @@
 int
 main ()
 {
-  xcb_connection_t *c;
-  xcb_window_t win;
   int screen_num;
   struct PixelBuffer png_buffer;
+  struct XcbObject xcb_object;
 
   set_log_level (0);
 
@@ -21,25 +20,24 @@ main ()
   read_png_file ("frog.png", &row_pointers, &png_buffer);
 
   /* Make connection to X server and initialize our window */
-  c = xcb_connect (NULL, &screen_num);
-  win = xcb_init (c, png_buffer);
+  xcb_object.conn = xcb_connect (NULL, &screen_num);
+  pidget_xcb_init (&xcb_object, &png_buffer);
+  pidget_xcb_load_image (&xcb_object, png_buffer);
 
   /* Map the window to our screen */
-  xcb_map_window (c, win);
-
-  /* Flush commands so our screen is drawn before pause */
-  xcb_flush (c);
+  xcb_map_window (xcb_object.conn, xcb_object.win);
+  xcb_flush (xcb_object.conn);
 
   /* Event loop */
   /* TODO: Use libev for event loop */
   xcb_generic_event_t *e;
-  while ((e = xcb_wait_for_event (c)))
+  while ((e = xcb_wait_for_event (xcb_object.conn)))
     {
-      handle_event (c, win, e);
+      handle_event (&xcb_object, e);
       free (e);
     }
 
-  xcb_disconnect (c);
+  xcb_disconnect (xcb_object.conn);
 
   return 0;
 }

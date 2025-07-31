@@ -9,9 +9,11 @@
 
 typedef struct XcbObject
 {
+  xcb_connection_t *conn;
   xcb_window_t win;
   xcb_gcontext_t gc;
   xcb_pixmap_t backing_pixmap;
+  xcb_screen_t *screen;
 } XcbObject;
 
 typedef struct MotifHints
@@ -26,13 +28,13 @@ typedef struct MotifHints
 xcb_visualtype_t *
 find_argb_visual (xcb_connection_t *conn, xcb_screen_t *screen);
 
-xcb_window_t
-xcb_init (xcb_connection_t *c, struct PixelBuffer png_buffer);
+int
+pidget_xcb_init (XcbObject *xcb_object, struct PixelBuffer *png_buffer);
 
-xcb_atom_t
-get_atom (xcb_connection_t *conn, const char *name);
+int
+pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer);
 
 void
-handle_event (xcb_connection_t *c, xcb_window_t win, xcb_generic_event_t *e);
+handle_event (XcbObject *xcb_object, xcb_generic_event_t *e);
 
 #endif // XCB_H

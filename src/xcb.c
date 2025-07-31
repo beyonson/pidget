@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
+#include <unistd.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_aux.h>
 #include <xcb/xcb_errors.h>
@@ -176,7 +176,7 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer)
 void
 hop_right (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
 {
-  int rx, ry, xright, ybelow;
+  int rx, ry, xright;
   xcb_get_geometry_reply_t *geom;
   xcb_translate_coordinates_reply_t *trans_coords;
 
@@ -199,11 +199,19 @@ hop_right (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
   rx = (int16_t)trans_coords->dst_x;
   ry = (int16_t)trans_coords->dst_y;
 
+  /* Check if hop will lead to out of bounds */
+  /* TODO: If out of bounds, turn pet around */
+  xright
+      = (screen->width_in_pixels - rx - geom->border_width * 2 - geom->width);
+
+  if (xright - 50 < 0)
+    goto error_bounds;
+
   /* Perform elliptical movement */
-  double x0 = -5.0;
+  double x0 = -50.0;
   double y0 = 0.0;
-  double semi_major = 5.0;
-  double semi_minor = 3.0;
+  double semi_major = 50.0;
+  double semi_minor = 30.0;
 
   for (double t = 0.0; t <= M_PI; t += 0.1)
     {
@@ -211,7 +219,7 @@ hop_right (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
       double y = y0 + semi_minor * sin (t);
 
       uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
-      uint32_t values[] = { rx - 10 * x, ry - 10 * y };
+      uint32_t values[] = { rx - x, ry - y };
 
       xcb_configure_window (c, win, mask, values);
       xcb_request_check (c, xcb_configure_window (c, win, mask, values));
@@ -219,6 +227,7 @@ hop_right (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
       usleep (10000);
     }
 
+error_bounds:
   free (trans_coords);
 error_trans:
   free (geom);
@@ -228,7 +237,7 @@ error_trans:
 void
 move_window (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
 {
-  int rx, ry, xright, ybelow;
+  int rx, ry;
   xcb_get_geometry_reply_t *geom;
   xcb_translate_coordinates_reply_t *trans_coords;
 
@@ -299,7 +308,6 @@ handle_event (XcbObject *xcb_object, xcb_generic_event_t *e)
     case XCB_KEY_RELEASE:
       {
         /* Add handling code */
-        xcb_key_release_event_t *ev = (xcb_key_release_event_t *)e;
         hop_right (xcb_object->conn, xcb_object->win, xcb_object->screen);
         xcb_flush (xcb_object->conn);
         break;

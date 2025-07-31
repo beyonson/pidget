@@ -4,9 +4,6 @@
 #ifndef XCB_H
 #define XCB_H
 
-#define WIDTH 409
-#define HEIGHT 450
-
 typedef struct XcbObject
 {
   xcb_connection_t *conn;

@@ -1,10 +1,12 @@
 #include "xcb.h"
 #include "logger.h"
 #include <assert.h>
+#include <math.h>
 #include <png.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_aux.h>
 #include <xcb/xcb_errors.h>
@@ -102,11 +104,13 @@ pidget_xcb_init (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
                        32, sizeof (motif_hints), &motif_hints);
   free (motif_reply);
 
-  /* Set forced window size */
+  /* Set forced window size, for tiling WMs */
   xcb_size_hints_t hints;
 
-  xcb_icccm_size_hints_set_max_size (&hints, WIDTH, HEIGHT);
-  xcb_icccm_size_hints_set_min_size (&hints, WIDTH, HEIGHT);
+  xcb_icccm_size_hints_set_max_size (&hints, png_buffer->width,
+                                     png_buffer->height);
+  xcb_icccm_size_hints_set_min_size (&hints, png_buffer->width,
+                                     png_buffer->height);
   xcb_icccm_set_wm_size_hints (xcb_object->conn, xcb_object->win,
                                XCB_ATOM_WM_NORMAL_HINTS, &hints);
 
@@ -158,8 +162,6 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer)
                      | XCB_GC_GRAPHICS_EXPOSURES,
                  values);
 
-  log_message (0, "backing pixmap: %d\n", xcb_object->backing_pixmap);
-
   xcb_image_put (xcb_object->conn, xcb_object->backing_pixmap, xcb_object->gc,
                  image, 0, 0, 0);
 
@@ -172,51 +174,98 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer)
 }
 
 void
-move_window (xcb_connection_t *c, xcb_window_t win, int32_t x, int32_t y)
+hop_right (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
 {
+  int rx, ry, xright, ybelow;
   xcb_get_geometry_reply_t *geom;
-  xcb_query_tree_reply_t *tree;
-  xcb_translate_coordinates_reply_t *trans;
+  xcb_translate_coordinates_reply_t *trans_coords;
 
-  /* You initialize c and win */
-  geom = xcb_get_geometry_reply (c, xcb_get_geometry (c, win), NULL);
-  if (!geom)
-    {
-      log_message (3, "Error: Failed to get geometry reply\n");
-      goto error_geom;
-    }
+  xcb_get_geometry_cookie_t gg_cookie = xcb_get_geometry (c, win);
 
-  tree = xcb_query_tree_reply (c, xcb_query_tree (c, win), NULL);
-  if (!tree)
-    {
-      log_message (3, "Error: Failed to query tree\n");
-      goto error_tree;
-    }
+  geom = xcb_get_geometry_reply (c, gg_cookie, NULL);
 
-  trans = xcb_translate_coordinates_reply (
-      c, xcb_translate_coordinates (c, win, tree->parent, geom->x, geom->y),
-      NULL);
-  if (!trans)
+  xcb_translate_coordinates_cookie_t trans_coords_cookie
+      = xcb_translate_coordinates (c, win, geom->root, -(geom->border_width),
+                                   (geom->border_width));
+
+  trans_coords
+      = xcb_translate_coordinates_reply (c, trans_coords_cookie, NULL);
+  if (!trans_coords)
     {
-      log_message (3, "Error: Failed to get coordinates reply\n");
+      log_message (3, "Can't get translated coordinates.");
       goto error_trans;
     }
 
+  rx = (int16_t)trans_coords->dst_x;
+  ry = (int16_t)trans_coords->dst_y;
+
+  /* Perform elliptical movement */
+  double x0 = -5.0;
+  double y0 = 0.0;
+  double semi_major = 5.0;
+  double semi_minor = 3.0;
+
+  for (double t = 0.0; t <= M_PI; t += 0.1)
+    {
+      double x = x0 + semi_major * cos (t);
+      double y = y0 + semi_minor * sin (t);
+
+      uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
+      uint32_t values[] = { rx - 10 * x, ry - 10 * y };
+
+      xcb_configure_window (c, win, mask, values);
+      xcb_request_check (c, xcb_configure_window (c, win, mask, values));
+      xcb_flush (c);
+      usleep (10000);
+    }
+
+  free (trans_coords);
+error_trans:
+  free (geom);
+  return;
+}
+
+void
+move_window (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
+{
+  int rx, ry, xright, ybelow;
+  xcb_get_geometry_reply_t *geom;
+  xcb_translate_coordinates_reply_t *trans_coords;
+
+  xcb_get_geometry_cookie_t gg_cookie = xcb_get_geometry (c, win);
+
+  geom = xcb_get_geometry_reply (c, gg_cookie, NULL);
+
+  xcb_translate_coordinates_cookie_t trans_coords_cookie
+      = xcb_translate_coordinates (c, win, geom->root, -(geom->border_width),
+                                   (geom->border_width));
+
+  trans_coords
+      = xcb_translate_coordinates_reply (c, trans_coords_cookie, NULL);
+  if (!trans_coords)
+    {
+      log_message (3, "Can't get translated coordinates.");
+      goto error_trans;
+    }
+
+  rx = (int16_t)trans_coords->dst_x;
+  ry = (int16_t)trans_coords->dst_y;
+
+  log_message (0, "Window id: 0x%x\n", win);
+  log_message (0, "Frog X: %d, Frog Y: %d\n", rx, ry);
+  log_message (0, "Screen Width: %d, Screen Height: %d\n",
+               screen->width_in_pixels, screen->height_in_pixels);
+
   uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
-  uint32_t values[] = { trans->dst_x + 10, trans->dst_y + 10 };
+  uint32_t values[] = { rx + 10, ry + 10 };
 
   xcb_configure_window (c, win, mask, values);
   xcb_request_check (c, xcb_configure_window (c, win, mask, values));
-  xcb_flush (c); // Ensure the request is sent to the server
+  xcb_flush (c);
 
-  /* the translated coordinates are in trans->dst_x and trans->dst_y */
-  free (trans);
-
+  free (trans_coords);
 error_trans:
-  free (tree);
-error_tree:
   free (geom);
-error_geom:
   return;
 }
 
@@ -251,8 +300,7 @@ handle_event (XcbObject *xcb_object, xcb_generic_event_t *e)
       {
         /* Add handling code */
         xcb_key_release_event_t *ev = (xcb_key_release_event_t *)e;
-        move_window (xcb_object->conn, xcb_object->win, ev->root_x,
-                     ev->root_y);
+        hop_right (xcb_object->conn, xcb_object->win, xcb_object->screen);
         xcb_flush (xcb_object->conn);
         break;
       }

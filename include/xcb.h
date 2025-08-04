@@ -25,6 +25,12 @@ typedef struct MotifHints
 xcb_visualtype_t *
 find_argb_visual (xcb_connection_t *conn, xcb_screen_t *screen);
 
+void
+hop_random (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen);
+
+void
+pidget_move_random (XcbObject *xcb_object);
+
 int
 pidget_xcb_init (XcbObject *xcb_object, struct PixelBuffer *png_buffer);
 

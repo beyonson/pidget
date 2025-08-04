@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_aux.h>
@@ -114,6 +115,11 @@ pidget_xcb_init (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
   xcb_icccm_set_wm_size_hints (xcb_object->conn, xcb_object->win,
                                XCB_ATOM_WM_NORMAL_HINTS, &hints);
 
+  uint32_t pos_mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
+  uint32_t values[] = { 0, 0 };
+  xcb_configure_window (xcb_object->conn, xcb_object->win, pos_mask, values);
+  xcb_flush (xcb_object->conn);
+
   return 0;
 }
 
@@ -169,12 +175,19 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer)
   xcb_copy_area (xcb_object->conn, xcb_object->backing_pixmap, xcb_object->win,
                  xcb_object->gc, 0, 0, 0, 0, png_buffer.width,
                  png_buffer.height);
+  xcb_flush (xcb_object->conn);
 
   return 0;
 }
 
 void
-hop_right (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
+pidget_move_random (XcbObject *xcb_object)
+{
+  hop_random (xcb_object->conn, xcb_object->win, xcb_object->screen);
+}
+
+void
+hop_random (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
 {
   int rx, ry, xright;
   xcb_get_geometry_reply_t *geom;
@@ -204,22 +217,41 @@ hop_right (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
   xright
       = (screen->width_in_pixels - rx - geom->border_width * 2 - geom->width);
 
+  /* Choose direction */
+  srand (time (NULL));
+  int left;
   if (xright - 50 < 0)
-    goto error_bounds;
+    {
+      left = 1;
+    }
+  else if (rx - 50 < 0)
+    {
+      left = 0;
+    }
+  else
+    {
+      left = (rand () % (1 - 0 + 1));
+    }
 
   /* Perform elliptical movement */
   double x0 = -50.0;
   double y0 = 0.0;
   double semi_major = 50.0;
   double semi_minor = 30.0;
+  int steps = 32;
+  uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
 
-  for (double t = 0.0; t <= M_PI; t += 0.1)
+  for (int i = 0; i <= steps; i++)
     {
+      double t = M_PI * i / steps;
       double x = x0 + semi_major * cos (t);
       double y = y0 + semi_minor * sin (t);
-
-      uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
       uint32_t values[] = { rx - x, ry - y };
+
+      if (left)
+        {
+          values[0] = rx + x;
+        }
 
       xcb_configure_window (c, win, mask, values);
       xcb_request_check (c, xcb_configure_window (c, win, mask, values));
@@ -227,7 +259,6 @@ hop_right (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
       usleep (10000);
     }
 
-error_bounds:
   free (trans_coords);
 error_trans:
   free (geom);
@@ -308,7 +339,7 @@ handle_event (XcbObject *xcb_object, xcb_generic_event_t *e)
     case XCB_KEY_RELEASE:
       {
         /* Add handling code */
-        hop_right (xcb_object->conn, xcb_object->win, xcb_object->screen);
+        hop_random (xcb_object->conn, xcb_object->win, xcb_object->screen);
         xcb_flush (xcb_object->conn);
         break;
       }

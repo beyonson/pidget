@@ -67,10 +67,10 @@ read_png_file (char *filename, png_bytepp *row_pointers,
   log_message (0, "Image height: %d\n", png_buffer->height);
   log_message (0, "Image depth: %d\n", png_buffer->bit_depth);
 
-  if (png_get_color_type (png_ptr, info_ptr) == PNG_COLOR_TYPE_RGB_ALPHA)
+  if (png_buffer->bit_depth == 16)
     {
-      log_message (0, "Swapping alpha\n");
-      // png_set_swap_alpha(png_ptr);
+      log_message (0, "Stripping depth to 8\n");
+      png_set_strip_16 (png_ptr);
     }
 
   png_read_update_info (png_ptr, info_ptr);

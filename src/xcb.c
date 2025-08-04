@@ -115,9 +115,6 @@ pidget_xcb_init (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
   xcb_icccm_set_wm_size_hints (xcb_object->conn, xcb_object->win,
                                XCB_ATOM_WM_NORMAL_HINTS, &hints);
 
-  uint32_t pos_mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
-  uint32_t values[] = { 0, 0 };
-  xcb_configure_window (xcb_object->conn, xcb_object->win, pos_mask, values);
   xcb_flush (xcb_object->conn);
 
   return 0;
@@ -181,28 +178,64 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer)
 }
 
 void
-pidget_move_random (XcbObject *xcb_object)
+pidget_set_origin (XcbObject *xcb_object)
 {
-  hop_random (xcb_object->conn, xcb_object->win, xcb_object->screen);
+  int ybelow;
+  xcb_get_geometry_reply_t *geom;
+  xcb_translate_coordinates_reply_t *trans_coords;
+
+  xcb_get_geometry_cookie_t gg_cookie
+      = xcb_get_geometry (xcb_object->conn, xcb_object->win);
+
+  geom = xcb_get_geometry_reply (xcb_object->conn, gg_cookie, NULL);
+
+  xcb_translate_coordinates_cookie_t trans_coords_cookie
+      = xcb_translate_coordinates (xcb_object->conn, xcb_object->win,
+                                   geom->root, -(geom->border_width),
+                                   (geom->border_width));
+
+  trans_coords = xcb_translate_coordinates_reply (xcb_object->conn,
+                                                  trans_coords_cookie, NULL);
+  if (!trans_coords)
+    {
+      log_message (3, "Can't get translated coordinates.");
+      goto error_trans;
+    }
+
+  ybelow = (xcb_object->screen->height_in_pixels - geom->border_width * 2
+            - geom->height);
+
+  uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
+  uint32_t values[] = { 0, ybelow };
+
+  xcb_configure_window (xcb_object->conn, xcb_object->win, mask, values);
+  xcb_flush (xcb_object->conn);
+
+  free (trans_coords);
+error_trans:
+  free (geom);
+  return;
 }
 
 void
-hop_random (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
+pidget_hop_random (XcbObject *xcb_object)
 {
   int rx, ry, xright;
   xcb_get_geometry_reply_t *geom;
   xcb_translate_coordinates_reply_t *trans_coords;
 
-  xcb_get_geometry_cookie_t gg_cookie = xcb_get_geometry (c, win);
+  xcb_get_geometry_cookie_t gg_cookie
+      = xcb_get_geometry (xcb_object->conn, xcb_object->win);
 
-  geom = xcb_get_geometry_reply (c, gg_cookie, NULL);
+  geom = xcb_get_geometry_reply (xcb_object->conn, gg_cookie, NULL);
 
   xcb_translate_coordinates_cookie_t trans_coords_cookie
-      = xcb_translate_coordinates (c, win, geom->root, -(geom->border_width),
+      = xcb_translate_coordinates (xcb_object->conn, xcb_object->win,
+                                   geom->root, -(geom->border_width),
                                    (geom->border_width));
 
-  trans_coords
-      = xcb_translate_coordinates_reply (c, trans_coords_cookie, NULL);
+  trans_coords = xcb_translate_coordinates_reply (xcb_object->conn,
+                                                  trans_coords_cookie, NULL);
   if (!trans_coords)
     {
       log_message (3, "Can't get translated coordinates.");
@@ -214,8 +247,8 @@ hop_random (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
 
   /* Check if hop will lead to out of bounds */
   /* TODO: If out of bounds, turn pet around */
-  xright
-      = (screen->width_in_pixels - rx - geom->border_width * 2 - geom->width);
+  xright = (xcb_object->screen->width_in_pixels - rx - geom->border_width * 2
+            - geom->width);
 
   /* Choose direction */
   srand (time (NULL));
@@ -253,9 +286,8 @@ hop_random (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
           values[0] = rx + x;
         }
 
-      xcb_configure_window (c, win, mask, values);
-      xcb_request_check (c, xcb_configure_window (c, win, mask, values));
-      xcb_flush (c);
+      xcb_configure_window (xcb_object->conn, xcb_object->win, mask, values);
+      xcb_flush (xcb_object->conn);
       usleep (10000);
     }
 
@@ -339,7 +371,7 @@ handle_event (XcbObject *xcb_object, xcb_generic_event_t *e)
     case XCB_KEY_RELEASE:
       {
         /* Add handling code */
-        hop_random (xcb_object->conn, xcb_object->win, xcb_object->screen);
+        pidget_hop_random (xcb_object);
         xcb_flush (xcb_object->conn);
         break;
       }

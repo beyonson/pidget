@@ -35,7 +35,7 @@ xcb_event_cb (EV_P_ ev_io *w, int revents)
 static void
 timeout_cb (EV_P_ ev_timer *w, int revents)
 {
-  pidget_move_random (&xcb_object);
+  pidget_hop_random (&xcb_object);
 }
 
 int
@@ -56,12 +56,14 @@ main ()
 
   /* Map the window to our screen */
   xcb_map_window (xcb_object.conn, xcb_object.win);
+
+  pidget_set_origin (&xcb_object);
+
   xcb_flush (xcb_object.conn);
 
   /* Event loop */
   struct ev_loop *loop = EV_DEFAULT;
-  ev_timer_init (&timeout_watcher, timeout_cb, 1.0,
-                 2.0);
+  ev_timer_init (&timeout_watcher, timeout_cb, 1.0, 2.0);
   ev_timer_start (loop, &timeout_watcher);
 
   ev_io_init (&xcb_watcher, xcb_event_cb,

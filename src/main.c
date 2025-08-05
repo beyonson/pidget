@@ -10,6 +10,7 @@
 
 ev_timer timeout_watcher;
 ev_io xcb_watcher;
+ev_signal signal_watcher;
 
 /* One PixelBuffer will be used for each drawing */
 /* These will then be used to load into the backing_pixmaps
@@ -39,6 +40,13 @@ static void
 timeout_cb (EV_P_ ev_timer *w, int revents)
 {
   pidget_hop_random (&xcb_object);
+}
+
+static void
+sigint_cb (struct ev_loop *loop, ev_signal *w, int revents)
+{
+  puts ("Caught SIGINT (Ctrl-C). Exiting gracefully.");
+  ev_break (EV_A_ EVBREAK_ALL); // Break out of the event loop
 }
 
 int
@@ -75,6 +83,9 @@ main ()
   ev_io_init (&xcb_watcher, xcb_event_cb,
               xcb_get_file_descriptor (xcb_object.conn), EV_READ);
   ev_io_start (loop, &xcb_watcher);
+
+  ev_signal_init (&signal_watcher, sigint_cb, SIGINT);
+  ev_signal_start (loop, &signal_watcher);
 
   ev_run (loop, 0);
 

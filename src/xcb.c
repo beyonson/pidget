@@ -168,6 +168,10 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer)
   xcb_image_put (xcb_object->conn, xcb_object->backing_pixmap, xcb_object->gc,
                  image, 0, 0, 0);
 
+  uint32_t size_values[] = { png_buffer.width, png_buffer.height };
+  xcb_configure_window (xcb_object->conn, xcb_object->win,
+                        XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT,
+                        size_values);
   /* Send image data to X server */
   xcb_copy_area (xcb_object->conn, xcb_object->backing_pixmap, xcb_object->win,
                  xcb_object->gc, 0, 0, 0, 0, png_buffer.width,

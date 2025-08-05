@@ -11,7 +11,10 @@
 ev_timer timeout_watcher;
 ev_io xcb_watcher;
 
-struct PixelBuffer png_buffer;
+/* One PixelBuffer will be used for each drawing */
+/* These will then be used to load into the backing_pixmaps
+ * of our XcbObject */
+struct PixelBuffer *png_buffer;
 struct XcbObject xcb_object;
 
 static void
@@ -42,17 +45,20 @@ int
 main ()
 {
   int screen_num;
+  int num_images = 2;
 
   set_log_level (0);
 
   /* Load frog PNG file */
-  png_bytep *row_pointers = NULL;
-  read_png_file ("frog.png", &row_pointers, &png_buffer);
+  png_buffer = malloc (num_images * sizeof (struct PixelBuffer));
+  read_png_file ("frog.png", &png_buffer[0]);
+  read_png_file ("frog-1.png", &png_buffer[1]);
 
   /* Make connection to X server and initialize our window */
   xcb_object.conn = xcb_connect (NULL, &screen_num);
-  pidget_xcb_init (&xcb_object, &png_buffer);
-  pidget_xcb_load_image (&xcb_object, png_buffer);
+  /* TODO: Make de-init, which frees all memory */
+  pidget_xcb_init (&xcb_object, &png_buffer[0]);
+  pidget_xcb_load_image (&xcb_object, png_buffer[0]);
 
   /* Map the window to our screen */
   xcb_map_window (xcb_object.conn, xcb_object.win);
@@ -73,6 +79,8 @@ main ()
   ev_run (loop, 0);
 
   xcb_disconnect (xcb_object.conn);
+
+  free (png_buffer);
 
   return 0;
 }

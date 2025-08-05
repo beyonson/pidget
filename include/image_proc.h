@@ -15,6 +15,6 @@ struct PixelBuffer
 };
 
 int
-read_png_file (char *filename, png_bytepp *row_pointers, struct PixelBuffer *png_buffer);
+read_png_file (char *filename, struct PixelBuffer *png_buffer);
 
 #endif // IMAGE_PROC_H

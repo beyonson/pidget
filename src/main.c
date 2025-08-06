@@ -79,7 +79,7 @@ main ()
 
   /* Event loop */
   struct ev_loop *loop = EV_DEFAULT;
-  ev_timer_init (&timeout_watcher, timeout_cb, 1.0, 2.0);
+  ev_timer_init (&timeout_watcher, timeout_cb, 2.0, 2.0);
   ev_timer_start (loop, &timeout_watcher);
 
   ev_io_init (&xcb_watcher, xcb_event_cb,

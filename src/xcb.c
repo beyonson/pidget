@@ -1,6 +1,7 @@
 #include "xcb.h"
 #include "logger.h"
 #include <assert.h>
+#include <endian.h>
 #include <math.h>
 #include <png.h>
 #include <stdbool.h>
@@ -132,9 +133,26 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer,
       for (int y = 0; y < png_buffer.height; y++)
         {
           png_bytep row = rows[y]; // row is png_byte *
-          for (int x = 0; x < png_buffer.bytes_per_row; x++)
+          for (int x = 0; x < png_buffer.width; x++)
             {
-              frog_bytes[y * png_buffer.bytes_per_row + x] = row[x];
+              int dst_i = (y * png_buffer.width + x) * 4;
+
+              uint8_t r = row[x * 4 + 0];
+              uint8_t g = row[x * 4 + 1];
+              uint8_t b = row[x * 4 + 2];
+              uint8_t a = row[x * 4 + 3];
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+              frog_bytes[dst_i + 0] = b;
+              frog_bytes[dst_i + 1] = g;
+              frog_bytes[dst_i + 2] = r;
+              frog_bytes[dst_i + 3] = a;
+#else
+              frog_bytes[dst_i + 0] = r;
+              frog_bytes[dst_i + 1] = g;
+              frog_bytes[dst_i + 2] = b;
+              frog_bytes[dst_i + 3] = a;
+#endif
             }
         }
     }
@@ -142,17 +160,29 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer,
     {
       for (int y = 0; y < png_buffer.height; y++)
         {
-          png_bytep row = rows[y]; // row is png_byte *
-          for (int x = 0; x < png_buffer.bytes_per_row; x += 4)
+          png_bytep row = rows[y];
+          for (int x = 0; x < png_buffer.width; x++)
             {
-              frog_bytes[y * png_buffer.bytes_per_row + x]
-                  = row[png_buffer.bytes_per_row - x - 4];
-              frog_bytes[y * png_buffer.bytes_per_row + x + 1]
-                  = row[png_buffer.bytes_per_row - x - 3];
-              frog_bytes[y * png_buffer.bytes_per_row + x + 2]
-                  = row[png_buffer.bytes_per_row - x - 2];
-              frog_bytes[y * png_buffer.bytes_per_row + x + 3]
-                  = row[png_buffer.bytes_per_row - x - 1];
+              int src_x = png_buffer.width - x - 1;
+
+              uint8_t r = row[src_x * 4 + 0];
+              uint8_t g = row[src_x * 4 + 1];
+              uint8_t b = row[src_x * 4 + 2];
+              uint8_t a = row[src_x * 4 + 3];
+
+              int dst_i = (y * png_buffer.width + x) * 4;
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+              frog_bytes[dst_i + 0] = b;
+              frog_bytes[dst_i + 1] = g;
+              frog_bytes[dst_i + 2] = r;
+              frog_bytes[dst_i + 3] = a;
+#else
+              frog_bytes[dst_i + 0] = r;
+              frog_bytes[dst_i + 1] = g;
+              frog_bytes[dst_i + 2] = b;
+              frog_bytes[dst_i + 3] = a;
+#endif
             }
         }
     }
@@ -292,80 +322,44 @@ pidget_hop_random (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
   mirrored = left;
 
   /* Perform elliptical movement */
-  double x0 = -50.0;
-  double y0 = 0.0;
-  double semi_major = 50.0;
-  double semi_minor = 30.0;
+  double gravity = 9.8;
+  /* 2 m/s based on https://pubmed.ncbi.nlm.nih.gov/7964379/ */
   int steps = 32;
+  double v0 = 2.0;
+  double vx0 = v0 * cos (0.8);
+  double vy0 = v0 * sin (0.8);
+  double time_of_flight = (2 * v0 * sin (0.8)) / gravity;
+  double step_time = time_of_flight / (double)steps;
   uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
 
   pidget_xcb_load_image (xcb_object, png_buffer[2], mirrored);
   for (int i = 0; i <= steps; i++)
     {
-      double t = M_PI * i / steps;
-      double x = x0 + semi_major * cos (t);
-      double y = y0 + semi_minor * sin (t);
-      uint32_t values[] = { rx - x, ry - y };
+      double x, y;
+      double current_time = i * step_time;
+      /* Displacement equations omit starting position since it's always 0 */
+      x = 100 * (vx0 * current_time);
+      y = 100
+          * ((vy0 * current_time)
+             - (0.5 * gravity * (current_time * current_time)));
 
-      if (i > steps * .5)
+      uint32_t values[] = { rx + x, ry - y };
+
+      if (current_time > time_of_flight * .5)
         {
           pidget_xcb_load_image (xcb_object, png_buffer[1], mirrored);
         }
 
       if (left)
         {
-          values[0] = rx + x;
+          values[0] = rx - x;
         }
 
       xcb_configure_window (xcb_object->conn, xcb_object->win, mask, values);
       xcb_flush (xcb_object->conn);
-      usleep (15000);
+      usleep ((int)(1000000 * step_time));
     }
   pidget_xcb_load_image (xcb_object, png_buffer[0], mirrored);
-
-  free (trans_coords);
-error_trans:
-  free (geom);
-  return;
-}
-
-void
-move_window (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
-{
-  int rx, ry;
-  xcb_get_geometry_reply_t *geom;
-  xcb_translate_coordinates_reply_t *trans_coords;
-
-  xcb_get_geometry_cookie_t gg_cookie = xcb_get_geometry (c, win);
-
-  geom = xcb_get_geometry_reply (c, gg_cookie, NULL);
-
-  xcb_translate_coordinates_cookie_t trans_coords_cookie
-      = xcb_translate_coordinates (c, win, geom->root, -(geom->border_width),
-                                   (geom->border_width));
-
-  trans_coords
-      = xcb_translate_coordinates_reply (c, trans_coords_cookie, NULL);
-  if (!trans_coords)
-    {
-      log_message (3, "Can't get translated coordinates.");
-      goto error_trans;
-    }
-
-  rx = (int16_t)trans_coords->dst_x;
-  ry = (int16_t)trans_coords->dst_y;
-
-  log_message (0, "Window id: 0x%x\n", win);
-  log_message (0, "Frog X: %d, Frog Y: %d\n", rx, ry);
-  log_message (0, "Screen Width: %d, Screen Height: %d\n",
-               screen->width_in_pixels, screen->height_in_pixels);
-
-  uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
-  uint32_t values[] = { rx + 10, ry + 10 };
-
-  xcb_configure_window (c, win, mask, values);
-  xcb_request_check (c, xcb_configure_window (c, win, mask, values));
-  xcb_flush (c);
 
   free (trans_coords);
 error_trans:

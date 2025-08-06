@@ -5,9 +5,10 @@
 #include <stdlib.h>
 
 int
-read_png_file (char *filename, png_bytepp *row_pointers,
-               struct PixelBuffer *png_buffer)
+read_png_file (char *filename, struct PixelBuffer *png_buffer)
 {
+  png_bytep *row_pointers = NULL;
+
   FILE *fp = fopen (filename, "rb");
   if (!fp)
     {
@@ -67,33 +68,32 @@ read_png_file (char *filename, png_bytepp *row_pointers,
   log_message (0, "Image height: %d\n", png_buffer->height);
   log_message (0, "Image depth: %d\n", png_buffer->bit_depth);
 
-  if (png_get_color_type (png_ptr, info_ptr) == PNG_COLOR_TYPE_RGB_ALPHA)
+  if (png_buffer->bit_depth == 16)
     {
-      log_message (0, "Swapping alpha\n");
-      // png_set_swap_alpha(png_ptr);
+      log_message (0, "Stripping depth to 8\n");
+      png_set_strip_16 (png_ptr);
     }
 
   png_read_update_info (png_ptr, info_ptr);
 
-  if (*row_pointers)
+  if (row_pointers)
     abort ();
 
-  *row_pointers
-      = (png_bytep *)malloc (sizeof (png_bytep) * png_buffer->height);
+  row_pointers = (png_bytep *)malloc (sizeof (png_bytep) * png_buffer->height);
   for (int y = 0; y < png_buffer->height; y++)
     {
-      (*row_pointers)[y]
+      (row_pointers)[y]
           = (png_byte *)malloc (png_get_rowbytes (png_ptr, info_ptr));
     }
 
   png_buffer->bytes_per_row = png_get_rowbytes (png_ptr, info_ptr);
   log_message (0, "Image bytes per row: %d\n", png_buffer->bytes_per_row);
 
-  png_read_image (png_ptr, *row_pointers);
+  png_read_image (png_ptr, row_pointers);
 
   png_read_end (png_ptr, info_ptr);
 
-  png_buffer->pixels = (void *)*row_pointers;
+  png_buffer->pixels = (void *)row_pointers;
 
   fclose (fp);
 

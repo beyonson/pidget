@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <math.h>
 #include <png.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,7 +37,7 @@ find_argb_visual (xcb_connection_t *conn, xcb_screen_t *screen)
 }
 
 int
-pidget_xcb_init (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
+pidget_xcb_init (XcbObject *xcb_object)
 {
   struct MotifHints motif_hints;
 
@@ -90,9 +91,9 @@ pidget_xcb_init (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
 
   /* Create the window */
   xcb_create_window (xcb_object->conn, 32, xcb_object->win,
-                     xcb_object->screen->root, 0, 0, png_buffer->width,
-                     png_buffer->height, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-                     argb_visual->visual_id, mask, valwin);
+                     xcb_object->screen->root, 0, 0, 96, 192, 0,
+                     XCB_WINDOW_CLASS_INPUT_OUTPUT, argb_visual->visual_id,
+                     mask, valwin);
 
   xcb_change_window_attributes (xcb_object->conn, xcb_object->win,
                                 XCB_CW_BORDER_PIXEL, border_color);
@@ -108,36 +109,51 @@ pidget_xcb_init (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
   /* Set forced window size, for tiling WMs */
   xcb_size_hints_t hints;
 
-  xcb_icccm_size_hints_set_max_size (&hints, png_buffer->width,
-                                     png_buffer->height);
-  xcb_icccm_size_hints_set_min_size (&hints, png_buffer->width,
-                                     png_buffer->height);
+  xcb_icccm_size_hints_set_max_size (&hints, 96, 192);
+  xcb_icccm_size_hints_set_min_size (&hints, 96, 192);
   xcb_icccm_set_wm_size_hints (xcb_object->conn, xcb_object->win,
                                XCB_ATOM_WM_NORMAL_HINTS, &hints);
 
-  uint32_t pos_mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
-  uint32_t values[] = { 0, 0 };
-  xcb_configure_window (xcb_object->conn, xcb_object->win, pos_mask, values);
   xcb_flush (xcb_object->conn);
 
   return 0;
 }
 
 int
-pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer)
+pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer,
+                       int mirrored)
 {
   /* Create backing pixmap */
   png_bytep *rows = (png_bytep *)png_buffer.pixels;
   uint8_t frog_bytes[png_buffer.width * png_buffer.height * 4];
 
-  int counter = 0;
-  for (int y = 0; y < png_buffer.height; y++)
+  if (!mirrored)
     {
-      png_bytep row = rows[y]; // row is png_byte *
-      for (int x = 0; x < png_buffer.bytes_per_row; x++)
+      for (int y = 0; y < png_buffer.height; y++)
         {
-          frog_bytes[counter] = row[x];
-          counter += 1;
+          png_bytep row = rows[y]; // row is png_byte *
+          for (int x = 0; x < png_buffer.bytes_per_row; x++)
+            {
+              frog_bytes[y * png_buffer.bytes_per_row + x] = row[x];
+            }
+        }
+    }
+  else
+    {
+      for (int y = 0; y < png_buffer.height; y++)
+        {
+          png_bytep row = rows[y]; // row is png_byte *
+          for (int x = 0; x < png_buffer.bytes_per_row; x += 4)
+            {
+              frog_bytes[y * png_buffer.bytes_per_row + x]
+                  = row[png_buffer.bytes_per_row - x - 4];
+              frog_bytes[y * png_buffer.bytes_per_row + x + 1]
+                  = row[png_buffer.bytes_per_row - x - 3];
+              frog_bytes[y * png_buffer.bytes_per_row + x + 2]
+                  = row[png_buffer.bytes_per_row - x - 2];
+              frog_bytes[y * png_buffer.bytes_per_row + x + 3]
+                  = row[png_buffer.bytes_per_row - x - 1];
+            }
         }
     }
 
@@ -171,6 +187,10 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer)
   xcb_image_put (xcb_object->conn, xcb_object->backing_pixmap, xcb_object->gc,
                  image, 0, 0, 0);
 
+  uint32_t size_values[] = { png_buffer.width, png_buffer.height };
+  xcb_configure_window (xcb_object->conn, xcb_object->win,
+                        XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT,
+                        size_values);
   /* Send image data to X server */
   xcb_copy_area (xcb_object->conn, xcb_object->backing_pixmap, xcb_object->win,
                  xcb_object->gc, 0, 0, 0, 0, png_buffer.width,
@@ -181,28 +201,65 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer)
 }
 
 void
-pidget_move_random (XcbObject *xcb_object)
+pidget_set_origin (XcbObject *xcb_object)
 {
-  hop_random (xcb_object->conn, xcb_object->win, xcb_object->screen);
-}
-
-void
-hop_random (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
-{
-  int rx, ry, xright;
+  int ybelow;
   xcb_get_geometry_reply_t *geom;
   xcb_translate_coordinates_reply_t *trans_coords;
 
-  xcb_get_geometry_cookie_t gg_cookie = xcb_get_geometry (c, win);
+  xcb_get_geometry_cookie_t gg_cookie
+      = xcb_get_geometry (xcb_object->conn, xcb_object->win);
 
-  geom = xcb_get_geometry_reply (c, gg_cookie, NULL);
+  geom = xcb_get_geometry_reply (xcb_object->conn, gg_cookie, NULL);
 
   xcb_translate_coordinates_cookie_t trans_coords_cookie
-      = xcb_translate_coordinates (c, win, geom->root, -(geom->border_width),
+      = xcb_translate_coordinates (xcb_object->conn, xcb_object->win,
+                                   geom->root, -(geom->border_width),
                                    (geom->border_width));
 
-  trans_coords
-      = xcb_translate_coordinates_reply (c, trans_coords_cookie, NULL);
+  trans_coords = xcb_translate_coordinates_reply (xcb_object->conn,
+                                                  trans_coords_cookie, NULL);
+  if (!trans_coords)
+    {
+      log_message (3, "Can't get translated coordinates.");
+      goto error_trans;
+    }
+
+  ybelow = (xcb_object->screen->height_in_pixels - geom->border_width * 2
+            - geom->height);
+
+  uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
+  uint32_t values[] = { 0, ybelow };
+
+  xcb_configure_window (xcb_object->conn, xcb_object->win, mask, values);
+  xcb_flush (xcb_object->conn);
+
+  free (trans_coords);
+error_trans:
+  free (geom);
+  return;
+}
+
+void
+pidget_hop_random (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
+{
+  int rx, ry, xright;
+  int mirrored = false;
+  xcb_get_geometry_reply_t *geom;
+  xcb_translate_coordinates_reply_t *trans_coords;
+
+  xcb_get_geometry_cookie_t gg_cookie
+      = xcb_get_geometry (xcb_object->conn, xcb_object->win);
+
+  geom = xcb_get_geometry_reply (xcb_object->conn, gg_cookie, NULL);
+
+  xcb_translate_coordinates_cookie_t trans_coords_cookie
+      = xcb_translate_coordinates (xcb_object->conn, xcb_object->win,
+                                   geom->root, -(geom->border_width),
+                                   (geom->border_width));
+
+  trans_coords = xcb_translate_coordinates_reply (xcb_object->conn,
+                                                  trans_coords_cookie, NULL);
   if (!trans_coords)
     {
       log_message (3, "Can't get translated coordinates.");
@@ -214,8 +271,8 @@ hop_random (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
 
   /* Check if hop will lead to out of bounds */
   /* TODO: If out of bounds, turn pet around */
-  xright
-      = (screen->width_in_pixels - rx - geom->border_width * 2 - geom->width);
+  xright = (xcb_object->screen->width_in_pixels - rx - geom->border_width * 2
+            - geom->width);
 
   /* Choose direction */
   srand (time (NULL));
@@ -232,6 +289,7 @@ hop_random (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
     {
       left = (rand () % (1 - 0 + 1));
     }
+  mirrored = left;
 
   /* Perform elliptical movement */
   double x0 = -50.0;
@@ -241,6 +299,7 @@ hop_random (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
   int steps = 32;
   uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
 
+  pidget_xcb_load_image (xcb_object, png_buffer[2], mirrored);
   for (int i = 0; i <= steps; i++)
     {
       double t = M_PI * i / steps;
@@ -248,16 +307,21 @@ hop_random (xcb_connection_t *c, xcb_window_t win, xcb_screen_t *screen)
       double y = y0 + semi_minor * sin (t);
       uint32_t values[] = { rx - x, ry - y };
 
+      if (i > steps * .5)
+        {
+          pidget_xcb_load_image (xcb_object, png_buffer[1], mirrored);
+        }
+
       if (left)
         {
           values[0] = rx + x;
         }
 
-      xcb_configure_window (c, win, mask, values);
-      xcb_request_check (c, xcb_configure_window (c, win, mask, values));
-      xcb_flush (c);
-      usleep (10000);
+      xcb_configure_window (xcb_object->conn, xcb_object->win, mask, values);
+      xcb_flush (xcb_object->conn);
+      usleep (15000);
     }
+  pidget_xcb_load_image (xcb_object, png_buffer[0], mirrored);
 
   free (trans_coords);
 error_trans:
@@ -310,7 +374,8 @@ error_trans:
 }
 
 void
-handle_event (XcbObject *xcb_object, xcb_generic_event_t *e)
+handle_event (XcbObject *xcb_object, xcb_generic_event_t *e,
+              struct PixelBuffer *png_buffer)
 {
   switch (e->response_type)
     {
@@ -339,7 +404,7 @@ handle_event (XcbObject *xcb_object, xcb_generic_event_t *e)
     case XCB_KEY_RELEASE:
       {
         /* Add handling code */
-        hop_random (xcb_object->conn, xcb_object->win, xcb_object->screen);
+        pidget_hop_random (xcb_object, png_buffer);
         xcb_flush (xcb_object->conn);
         break;
       }

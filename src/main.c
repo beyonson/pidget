@@ -60,9 +60,9 @@ main ()
 
   /* Load frog PNG file */
   png_buffer = malloc (num_images * sizeof (struct PixelBuffer));
-  read_png_file ("frog-1.png", &png_buffer[0]);
-  read_png_file ("frog-2.png", &png_buffer[1]);
-  read_png_file ("frog-3.png", &png_buffer[2]);
+  read_png_file ("images/frog-1.png", &png_buffer[0]);
+  read_png_file ("images/frog-2.png", &png_buffer[1]);
+  read_png_file ("images/frog-3.png", &png_buffer[2]);
 
   /* Make connection to X server and initialize our window */
   xcb_object.conn = xcb_connect (NULL, &screen_num);

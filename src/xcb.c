@@ -299,19 +299,30 @@ pidget_hop_random (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
   rx = (int16_t)trans_coords->dst_x;
   ry = (int16_t)trans_coords->dst_y;
 
-  /* Check if hop will lead to out of bounds */
-  /* TODO: If out of bounds, turn pet around */
   xright = (xcb_object->screen->width_in_pixels - rx - geom->border_width * 2
             - geom->width);
+
+  double gravity = 9.8;
+  int steps = 32;
+  double v0 = 1.6 + ((double)rand () / (RAND_MAX + 1.0)) * (5 - 1.6);
+  double theta = 0.8;
+  double vx0 = v0 * cos (theta);
+  double vy0 = v0 * sin (theta);
+  double range = 0.0;
+  double time_of_flight = (2 * v0 * sin (theta)) / gravity;
+  double step_time = time_of_flight / (double)steps;
+  uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
+
+  range = 100 * ((v0 * v0) * sin (2 * theta) / gravity);
 
   /* Choose direction */
   srand (time (NULL));
   int left;
-  if (xright - 50 < 0)
+  if (xright - range < 0)
     {
       left = 1;
     }
-  else if (rx - 50 < 0)
+  else if (rx - range < 0)
     {
       left = 0;
     }
@@ -320,17 +331,6 @@ pidget_hop_random (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
       left = (rand () % (1 - 0 + 1));
     }
   mirrored = left;
-
-  /* Perform elliptical movement */
-  double gravity = 9.8;
-  /* 2 m/s based on https://pubmed.ncbi.nlm.nih.gov/7964379/ */
-  int steps = 32;
-  double v0 = 2.0;
-  double vx0 = v0 * cos (0.8);
-  double vy0 = v0 * sin (0.8);
-  double time_of_flight = (2 * v0 * sin (0.8)) / gravity;
-  double step_time = time_of_flight / (double)steps;
-  uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
 
   pidget_xcb_load_image (xcb_object, png_buffer[2], mirrored);
   for (int i = 0; i <= steps; i++)

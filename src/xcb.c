@@ -1,6 +1,7 @@
 #include "xcb.h"
 #include "logger.h"
 #include <assert.h>
+#include <endian.h>
 #include <math.h>
 #include <png.h>
 #include <stdbool.h>
@@ -132,9 +133,27 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer,
       for (int y = 0; y < png_buffer.height; y++)
         {
           png_bytep row = rows[y]; // row is png_byte *
-          for (int x = 0; x < png_buffer.bytes_per_row; x++)
+          for (int x = 0; x < png_buffer.width; x++)
             {
-              frog_bytes[y * png_buffer.bytes_per_row + x] = row[x];
+              //frog_bytes[y * png_buffer.bytes_per_row + x] = row[x];
+              int dst_i = (y * png_buffer.width + x) * 4;
+
+              uint8_t r = row[x * 4 + 0];
+              uint8_t g = row[x * 4 + 1];
+              uint8_t b = row[x * 4 + 2];
+              uint8_t a = row[x * 4 + 3];
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+              frog_bytes[dst_i + 0] = b;
+              frog_bytes[dst_i + 1] = g;
+              frog_bytes[dst_i + 2] = r;
+              frog_bytes[dst_i + 3] = a;
+#else
+              frog_bytes[dst_i + 0] = r;
+              frog_bytes[dst_i + 1] = g;
+              frog_bytes[dst_i + 2] = b;
+              frog_bytes[dst_i + 3] = a;
+#endif
             }
         }
     }
@@ -142,17 +161,29 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer,
     {
       for (int y = 0; y < png_buffer.height; y++)
         {
-          png_bytep row = rows[y]; // row is png_byte *
-          for (int x = 0; x < png_buffer.bytes_per_row; x += 4)
+          png_bytep row = rows[y];
+          for (int x = 0; x < png_buffer.width; x++)
             {
-              frog_bytes[y * png_buffer.bytes_per_row + x]
-                  = row[png_buffer.bytes_per_row - x - 4];
-              frog_bytes[y * png_buffer.bytes_per_row + x + 1]
-                  = row[png_buffer.bytes_per_row - x - 3];
-              frog_bytes[y * png_buffer.bytes_per_row + x + 2]
-                  = row[png_buffer.bytes_per_row - x - 2];
-              frog_bytes[y * png_buffer.bytes_per_row + x + 3]
-                  = row[png_buffer.bytes_per_row - x - 1];
+              int src_x = png_buffer.width - x - 1;
+
+              uint8_t r = row[src_x * 4 + 0];
+              uint8_t g = row[src_x * 4 + 1];
+              uint8_t b = row[src_x * 4 + 2];
+              uint8_t a = row[src_x * 4 + 3];
+
+              int dst_i = (y * png_buffer.width + x) * 4;
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+              frog_bytes[dst_i + 0] = b;
+              frog_bytes[dst_i + 1] = g;
+              frog_bytes[dst_i + 2] = r;
+              frog_bytes[dst_i + 3] = a;
+#else
+              frog_bytes[dst_i + 0] = r;
+              frog_bytes[dst_i + 1] = g;
+              frog_bytes[dst_i + 2] = b;
+              frog_bytes[dst_i + 3] = a;
+#endif
             }
         }
     }

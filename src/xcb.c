@@ -292,34 +292,44 @@ pidget_hop_random (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
   mirrored = left;
 
   /* Perform elliptical movement */
-  double x0 = -50.0;
-  double y0 = 0.0;
-  double semi_major = 50.0;
-  double semi_minor = 30.0;
+  double gravity = 9.8;
+  double v0
+      = 2.0; /* 2 m/s based on https://pubmed.ncbi.nlm.nih.gov/7964379/ */
+  double vx0 = v0 * cos (0.8);
+  double vy0 = v0 * sin (0.8);
+  double time_of_flight = (2 * v0 * sin (0.8)) / gravity;
   int steps = 32;
+  double step_time = time_of_flight / (double)steps;
+  log_message (0, "Time of flight: %lf\n", time_of_flight);
+  log_message (0, "Steps: %lf seconds\n", steps);
   uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
 
   pidget_xcb_load_image (xcb_object, png_buffer[2], mirrored);
   for (int i = 0; i <= steps; i++)
     {
-      double t = M_PI * i / steps;
-      double x = x0 + semi_major * cos (t);
-      double y = y0 + semi_minor * sin (t);
-      uint32_t values[] = { rx - x, ry - y };
+      double x, y;
+      double current_time = i * step_time;
+      /* Displacement equations omit starting position since it's always 0 */
+      x = 100 * (vx0 * current_time);
+      y = 100
+          * ((vy0 * current_time)
+             - (0.5 * gravity * (current_time * current_time)));
 
-      if (i > steps * .5)
+      uint32_t values[] = { rx + x, ry - y };
+
+      if (current_time > time_of_flight * .5)
         {
           pidget_xcb_load_image (xcb_object, png_buffer[1], mirrored);
         }
 
       if (left)
         {
-          values[0] = rx + x;
+          values[0] = rx - x;
         }
 
       xcb_configure_window (xcb_object->conn, xcb_object->win, mask, values);
       xcb_flush (xcb_object->conn);
-      usleep (15000);
+      usleep ((int)(1000000 * step_time));
     }
   pidget_xcb_load_image (xcb_object, png_buffer[0], mirrored);
 

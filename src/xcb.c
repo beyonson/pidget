@@ -109,6 +109,8 @@ pidget_xcb_init (XcbObject *xcb_object)
   /* Set forced window size, for tiling WMs */
   xcb_size_hints_t hints;
 
+  xcb_icccm_size_hints_set_max_size (&hints, 96, 192);
+  xcb_icccm_size_hints_set_min_size (&hints, 96, 192);
   xcb_icccm_set_wm_size_hints (xcb_object->conn, xcb_object->win,
                                XCB_ATOM_WM_NORMAL_HINTS, &hints);
 

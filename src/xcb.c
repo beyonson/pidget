@@ -91,7 +91,7 @@ pidget_xcb_init (XcbObject *xcb_object)
 
   /* Create the window */
   xcb_create_window (xcb_object->conn, 32, xcb_object->win,
-                     xcb_object->screen->root, 0, 0, 256, 256, 0,
+                     xcb_object->screen->root, 0, 0, 96, 192, 0,
                      XCB_WINDOW_CLASS_INPUT_OUTPUT, argb_visual->visual_id,
                      mask, valwin);
 
@@ -109,8 +109,6 @@ pidget_xcb_init (XcbObject *xcb_object)
   /* Set forced window size, for tiling WMs */
   xcb_size_hints_t hints;
 
-  xcb_icccm_size_hints_set_max_size (&hints, 256, 256);
-  xcb_icccm_size_hints_set_min_size (&hints, 256, 256);
   xcb_icccm_set_wm_size_hints (xcb_object->conn, xcb_object->win,
                                XCB_ATOM_WM_NORMAL_HINTS, &hints);
 

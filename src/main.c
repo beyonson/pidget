@@ -3,6 +3,7 @@
 #include "xcb.h"
 #include <assert.h>
 #include <ev.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -26,7 +27,7 @@ xcb_event_cb (EV_P_ ev_io *w, int revents)
     {
       if (e != NULL)
         {
-          handle_event (&xcb_object, e);
+          handle_event (&xcb_object, e, png_buffer);
           free (e);
         }
       else
@@ -39,7 +40,7 @@ xcb_event_cb (EV_P_ ev_io *w, int revents)
 static void
 timeout_cb (EV_P_ ev_timer *w, int revents)
 {
-  pidget_hop_random (&xcb_object);
+  pidget_hop_random (&xcb_object, png_buffer);
 }
 
 static void
@@ -53,20 +54,21 @@ int
 main ()
 {
   int screen_num;
-  int num_images = 2;
+  int num_images = 3;
 
   set_log_level (0);
 
   /* Load frog PNG file */
   png_buffer = malloc (num_images * sizeof (struct PixelBuffer));
-  read_png_file ("frog.png", &png_buffer[0]);
-  read_png_file ("frog-1.png", &png_buffer[1]);
+  read_png_file ("frog-1.png", &png_buffer[0]);
+  read_png_file ("frog-2.png", &png_buffer[1]);
+  read_png_file ("frog-3.png", &png_buffer[2]);
 
   /* Make connection to X server and initialize our window */
   xcb_object.conn = xcb_connect (NULL, &screen_num);
   /* TODO: Make de-init, which frees all memory */
-  pidget_xcb_init (&xcb_object, &png_buffer[0]);
-  pidget_xcb_load_image (&xcb_object, png_buffer[0]);
+  pidget_xcb_init (&xcb_object);
+  pidget_xcb_load_image (&xcb_object, png_buffer[0], false);
 
   /* Map the window to our screen */
   xcb_map_window (xcb_object.conn, xcb_object.win);

@@ -299,16 +299,12 @@ pidget_hop_random (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
   rx = (int16_t)trans_coords->dst_x;
   ry = (int16_t)trans_coords->dst_y;
 
-  /* Check if hop will lead to out of bounds */
-  /* TODO: If out of bounds, turn pet around */
   xright = (xcb_object->screen->width_in_pixels - rx - geom->border_width * 2
             - geom->width);
 
-  /* Perform elliptical movement */
   double gravity = 9.8;
-  /* 2 m/s based on https://pubmed.ncbi.nlm.nih.gov/7964379/ */
   int steps = 32;
-  double v0 = 10.0;
+  double v0 = 1.6 + ((double)rand () / (RAND_MAX + 1.0)) * (5 - 1.6);
   double theta = 0.8;
   double vx0 = v0 * cos (theta);
   double vy0 = v0 * sin (theta);

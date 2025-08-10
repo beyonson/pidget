@@ -19,7 +19,7 @@ $(ODIR)/%.o: $(SDIR)/%.c $(DEPS)
 	$(CC) -o $@ -c $< $(CFLAGS)
 
 
-$(ODIR)/main: $(OBJ)
+$(ODIR)/pidget: $(OBJ)
 	@mkdir -p build
 	$(CC) -o $@ $^ $(CFLAGS)
 

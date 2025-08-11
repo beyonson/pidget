@@ -33,19 +33,16 @@ load_images (struct PixelBuffer **png_buffer,
 int
 hex_to_rgb (const char *hexColor, struct ColorRGB *color_rgb)
 {
-  // Skip the '#' if present
+  /* Skip the '#' if present */
   const char *hex = (hexColor[0] == '#') ? hexColor + 1 : hexColor;
-  char component[3] = { 0 }; // 2 characters + null terminator
+  char component[3] = { 0 };
 
-  // Red
   strncpy (component, hex, 2);
   color_rgb->r = (int)strtol (component, NULL, 16);
 
-  // Green
   strncpy (component, hex + 2, 2);
   color_rgb->g = (int)strtol (component, NULL, 16);
 
-  // Blue
   strncpy (component, hex + 4, 2);
   color_rgb->b = (int)strtol (component, NULL, 16);
 

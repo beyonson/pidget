@@ -141,13 +141,9 @@ read_png_file (char *filename, struct PixelBuffer *png_buffer,
   png_buffer->height = png_get_image_height (png_ptr, info_ptr);
   png_buffer->bit_depth = png_get_bit_depth (png_ptr, info_ptr);
 
-  log_message (0, "Image width: %d\n", png_buffer->width);
-  log_message (0, "Image height: %d\n", png_buffer->height);
-  log_message (0, "Image depth: %d\n", png_buffer->bit_depth);
-
   if (png_buffer->bit_depth == 16)
     {
-      log_message (0, "Stripping depth to 8\n");
+      log_message (1, "Stripping image depth to 8\n");
       png_set_strip_16 (png_ptr);
     }
 
@@ -164,7 +160,6 @@ read_png_file (char *filename, struct PixelBuffer *png_buffer,
     }
 
   png_buffer->bytes_per_row = png_get_rowbytes (png_ptr, info_ptr);
-  log_message (0, "Image bytes per row: %d\n", png_buffer->bytes_per_row);
 
   png_read_image (png_ptr, row_pointers);
 
@@ -172,7 +167,10 @@ read_png_file (char *filename, struct PixelBuffer *png_buffer,
 
   png_buffer->pixels = (void *)row_pointers;
 
-  apply_tint (png_buffer, pidget_configs->color, 0.75);
+  if (strcmp (pidget_configs->color, DEFAULT_COLOR) != 0)
+    {
+      apply_tint (png_buffer, pidget_configs->color, 0.5);
+    }
 
   fclose (fp);
 

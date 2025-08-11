@@ -3,6 +3,8 @@
 
 #include <xcb/xcb.h>
 
+#define DEFAULT_COLOR "default"
+
 typedef struct XcbObject
 {
   xcb_connection_t *conn;

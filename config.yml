@@ -1,5 +1,5 @@
 gravity: 9.8
-color: 100.0
+color: "#ffffff"
 images:
   - images/frog-1.png
   - images/frog-2.png

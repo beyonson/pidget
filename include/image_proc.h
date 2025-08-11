@@ -13,7 +13,7 @@ int
 load_images (struct PixelBuffer **png_buffer, struct PidgetConfigs *configs);
 
 int
-change_hue (struct PixelBuffer *png_buffer, float color);
+change_hue (struct PixelBuffer *png_buffer, char *color);
 
 int
 read_png_file (char *filename, struct PixelBuffer *png_buffer, struct PidgetConfigs *configs);

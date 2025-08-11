@@ -21,15 +21,15 @@ parse_config_file (struct PidgetConfigs *configs)
   };
 
   /* CYAML mapping schema fields array for the top level mapping. */
-  static const cyaml_schema_field_t top_mapping_schema[]
-      = { CYAML_FIELD_FLOAT ("gravity", CYAML_FLAG_DEFAULT,
-                             struct PidgetConfigs, gravity),
-          CYAML_FIELD_FLOAT ("color", CYAML_FLAG_DEFAULT, struct PidgetConfigs,
-                             color),
-          CYAML_FIELD_SEQUENCE ("images", CYAML_FLAG_POINTER,
-                                struct PidgetConfigs, images, &data_entry, 0,
-                                CYAML_UNLIMITED),
-          CYAML_FIELD_END };
+  static const cyaml_schema_field_t top_mapping_schema[] = {
+    CYAML_FIELD_FLOAT ("gravity", CYAML_FLAG_DEFAULT, struct PidgetConfigs,
+                       gravity),
+    CYAML_FIELD_STRING_PTR ("color", CYAML_FLAG_OPTIONAL, struct PidgetConfigs,
+                            color, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_SEQUENCE ("images", CYAML_FLAG_POINTER, struct PidgetConfigs,
+                          images, &data_entry, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_END
+  };
 
   /* CYAML value schema for the top level mapping. */
   static const cyaml_schema_value_t top_schema = {

@@ -30,8 +30,76 @@ load_images (struct PixelBuffer **png_buffer,
   return 0;
 }
 
+float
+rgb_to_hsv (int r_int, int g_int, int b_int)
+{
+  float r = r_int / 255.0f;
+  float g = g_int / 255.0f;
+  float b = b_int / 255.0f;
+  float h, s, v;
+
+  float cmax = fmaxf (fmaxf (r, g), b);
+  float cmin = fminf (fminf (r, g), b);
+  float diff = cmax - cmin;
+
+  // Calculate Hue
+  if (cmax == cmin)
+    {
+      h = 0; // Achromatic
+    }
+  else if (cmax == r)
+    {
+      h = 60 * fmod (((g - b) / diff), 6);
+    }
+  else if (cmax == g)
+    {
+      h = 60 * (((b - r) / diff) + 2);
+    }
+  else
+    { // cmax == b
+      h = 60 * (((r - g) / diff) + 4);
+    }
+
+  // Calculate Saturation
+  if (cmax == 0)
+    {
+      s = 0;
+    }
+  else
+    {
+      s = diff / cmax;
+    }
+
+  // Calculate Value
+  v = cmax;
+
+  return h;
+}
+
+float
+hex_to_rgb (const char *hexColor)
+{
+  // Skip the '#' if present
+  const char *hex = (hexColor[0] == '#') ? hexColor + 1 : hexColor;
+  char component[3] = { 0 }; // 2 characters + null terminator
+
+  // Red
+  strncpy (component, hex, 2);
+  int r = (int)strtol (component, NULL, 16);
+
+  // Green
+  strncpy (component, hex + 2, 2);
+  int g = (int)strtol (component, NULL, 16);
+
+  // Blue
+  strncpy (component, hex + 4, 2);
+  int b = (int)strtol (component, NULL, 16);
+
+  return rgb_to_hsv (r, g, b);
+}
+
 int
-change_hue (struct PixelBuffer *png_buffer, float color)
+change_hue (struct PixelBuffer *png_buffer, char *color)
 {
   png_bytep *rows = (png_bytep *)png_buffer->pixels;
   /* Change the hue */
@@ -55,7 +123,7 @@ change_hue (struct PixelBuffer *png_buffer, float color)
 
           v = max_val;
           s = (max_val - min_val) / max_val;
-          h = color;
+          h = hex_to_rgb (color);
 
           float c = v * s;
           float X = c * (1 - fabsf (fmodf (h / 60.0f, 2) - 1));

@@ -24,7 +24,7 @@ struct PixelBuffer
 typedef struct PidgetConfigs 
 {
   char *file_name;
-  float color;
+  char *color;
   float gravity;
   uint8_t images_count;
   char **images;

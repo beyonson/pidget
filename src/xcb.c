@@ -197,6 +197,7 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer,
   if (!image)
     {
       log_message (3, "No image\n");
+      return 1;
     }
 
   uint32_t values[] = { xcb_object->screen->white_pixel,

@@ -56,7 +56,7 @@ int
 main (int argc, char *argv[])
 {
   /* Parse CLI options */
-  int opt;
+  int err, opt;
   char *config_file = NULL;
 
   while ((opt = getopt (argc, argv, "hc:")) != -1)
@@ -75,33 +75,54 @@ main (int argc, char *argv[])
         }
     }
 
-  set_log_level (0);
+  set_log_level (1);
 
-  /* Config file received, parse it! */
+  /* Config file parsing and checking */
   if (config_file != NULL)
     {
       log_message (0, "Config file: %s\n", config_file);
       pidget_configs.file_name = config_file;
-      parse_config_file (&pidget_configs);
+      err = parse_config_file (&pidget_configs);
     }
   else
     {
-      log_message (0, "Using default configuration.\n", config_file);
+      log_message (1, "Using default configuration.\n", config_file);
+      pidget_configs.file_name = "config.yml";
+      err = parse_config_file (&pidget_configs);
     }
 
-  log_message (0, "Image count %d\n", pidget_configs.images_count);
+  if (err)
+    {
+      log_message (3, "Error in configuration file.\n");
+      return 1;
+    }
 
   int screen_num;
 
   /* Load frog images from config file */
-  load_images (&png_buffer, &pidget_configs);
+  err = load_images (&png_buffer, &pidget_configs);
+  if (err)
+    {
+      log_message (3, "Error loading images.\n");
+      return 1;
+    }
 
   /* Make connection to X server and initialize our window */
   xcb_object.conn = xcb_connect (NULL, &screen_num);
   /* TODO: Make de-init, which frees all memory */
-  pidget_xcb_init (&xcb_object);
+  err = pidget_xcb_init (&xcb_object);
+  if (err)
+    {
+      log_message (3, "Error initializing XCB.\n");
+      return 1;
+    }
 
-  pidget_xcb_load_image (&xcb_object, png_buffer[0], false);
+  err = pidget_xcb_load_image (&xcb_object, png_buffer[0], false);
+  if (err)
+    {
+      log_message (3, "Error loading image with XCB.\n");
+      return 1;
+    }
 
   xcb_map_window (xcb_object.conn, xcb_object.win);
 

@@ -75,7 +75,7 @@ main (int argc, char *argv[])
         }
     }
 
-  set_log_level (1);
+  set_log_level (0);
 
   /* Config file parsing and checking */
   if (config_file != NULL)

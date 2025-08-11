@@ -30,54 +30,8 @@ load_images (struct PixelBuffer **png_buffer,
   return 0;
 }
 
-float
-rgb_to_hsv (int r_int, int g_int, int b_int)
-{
-  float r = r_int / 255.0f;
-  float g = g_int / 255.0f;
-  float b = b_int / 255.0f;
-  float h, s, v;
-
-  float cmax = fmaxf (fmaxf (r, g), b);
-  float cmin = fminf (fminf (r, g), b);
-  float diff = cmax - cmin;
-
-  // Calculate Hue
-  if (cmax == cmin)
-    {
-      h = 0; // Achromatic
-    }
-  else if (cmax == r)
-    {
-      h = 60 * fmod (((g - b) / diff), 6);
-    }
-  else if (cmax == g)
-    {
-      h = 60 * (((b - r) / diff) + 2);
-    }
-  else
-    { // cmax == b
-      h = 60 * (((r - g) / diff) + 4);
-    }
-
-  // Calculate Saturation
-  if (cmax == 0)
-    {
-      s = 0;
-    }
-  else
-    {
-      s = diff / cmax;
-    }
-
-  // Calculate Value
-  v = cmax;
-
-  return h;
-}
-
-float
-hex_to_rgb (const char *hexColor)
+int
+hex_to_rgb (const char *hexColor, struct ColorRGB *color_rgb)
 {
   // Skip the '#' if present
   const char *hex = (hexColor[0] == '#') ? hexColor + 1 : hexColor;
@@ -85,98 +39,45 @@ hex_to_rgb (const char *hexColor)
 
   // Red
   strncpy (component, hex, 2);
-  int r = (int)strtol (component, NULL, 16);
+  color_rgb->r = (int)strtol (component, NULL, 16);
 
   // Green
   strncpy (component, hex + 2, 2);
-  int g = (int)strtol (component, NULL, 16);
+  color_rgb->g = (int)strtol (component, NULL, 16);
 
   // Blue
   strncpy (component, hex + 4, 2);
-  int b = (int)strtol (component, NULL, 16);
+  color_rgb->b = (int)strtol (component, NULL, 16);
 
-  return rgb_to_hsv (r, g, b);
+  return 0;
 }
 
-int
-change_hue (struct PixelBuffer *png_buffer, char *color)
+void
+apply_tint (struct PixelBuffer *png_buffer, char *color, float blend_factor)
 {
+  // Calculate the new RGB values by blending the pixel color with the tint
+  // color.
   png_bytep *rows = (png_bytep *)png_buffer->pixels;
-  /* Change the hue */
+  struct ColorRGB color_rgb;
+  hex_to_rgb (color, &color_rgb);
+
+  // Apply tint on each pixel
   for (int y = 0; y < png_buffer->height; y++)
     {
       for (int x = 0; x < png_buffer->width; x++)
         {
           png_bytep row = rows[y];
-          uint8_t rgb_arr[3];
-          uint8_t min, max;
-          float min_val, max_val, h, s, v;
-
-          rgb_arr[RED] = row[x * 4 + 0];
-          rgb_arr[GREEN] = row[x * 4 + 1];
-          rgb_arr[BLUE] = row[x * 4 + 2];
-
-          min = arr_min (rgb_arr, 3);
-          max = arr_max (rgb_arr, 3);
-          min_val = (float)rgb_arr[min];
-          max_val = (float)rgb_arr[max];
-
-          v = max_val;
-          s = (max_val - min_val) / max_val;
-          h = hex_to_rgb (color);
-
-          float c = v * s;
-          float X = c * (1 - fabsf (fmodf (h / 60.0f, 2) - 1));
-          float m = v - c;
-
-          if (h >= 0 && h < 60)
+          if (row[x * 4 + 3] != 0)
             {
-              rgb_arr[RED] = c;
-              rgb_arr[GREEN] = X;
-              rgb_arr[BLUE] = 0;
+              row[x * 4 + 0] = (uint8_t)((1.0f - blend_factor) * row[x * 4 + 0]
+                                         + blend_factor * color_rgb.r);
+              row[x * 4 + 1] = (uint8_t)((1.0f - blend_factor) * row[x * 4 + 1]
+                                         + blend_factor * color_rgb.g);
+              row[x * 4 + 2] = (uint8_t)((1.0f - blend_factor) * row[x * 4 + 2]
+                                         + blend_factor * color_rgb.b);
             }
-          else if (h >= 60 && h < 120)
-            {
-              rgb_arr[RED] = X;
-              rgb_arr[GREEN] = c;
-              rgb_arr[BLUE] = 0;
-            }
-          else if (h >= 120 && h < 180)
-            {
-              rgb_arr[RED] = 0;
-              rgb_arr[GREEN] = c;
-              rgb_arr[BLUE] = X;
-            }
-          else if (h >= 180 && h < 240)
-            {
-              rgb_arr[RED] = 0;
-              rgb_arr[GREEN] = X;
-              rgb_arr[BLUE] = c;
-            }
-          else if (h >= 240 && h < 300)
-            {
-              rgb_arr[RED] = X;
-              rgb_arr[GREEN] = 0;
-              rgb_arr[BLUE] = c;
-            }
-          else
-            { /* h >= 300 && h < 360 */
-              rgb_arr[RED] = c;
-              rgb_arr[GREEN] = 0;
-              rgb_arr[BLUE] = X;
-            }
-
-          rgb_arr[RED] += m;
-          rgb_arr[GREEN] += m;
-          rgb_arr[BLUE] += m;
-
-          row[x * 4 + 0] = rgb_arr[RED];
-          row[x * 4 + 1] = rgb_arr[GREEN];
-          row[x * 4 + 2] = rgb_arr[BLUE];
         }
     }
-
-  return 0;
 }
 
 int
@@ -271,7 +172,7 @@ read_png_file (char *filename, struct PixelBuffer *png_buffer,
 
   png_buffer->pixels = (void *)row_pointers;
 
-  change_hue (png_buffer, pidget_configs->color);
+  apply_tint (png_buffer, pidget_configs->color, 0.75);
 
   fclose (fp);
 

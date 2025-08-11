@@ -55,13 +55,10 @@ hex_to_rgb (const char *hexColor, struct ColorRGB *color_rgb)
 void
 apply_tint (struct PixelBuffer *png_buffer, char *color, float blend_factor)
 {
-  // Calculate the new RGB values by blending the pixel color with the tint
-  // color.
   png_bytep *rows = (png_bytep *)png_buffer->pixels;
   struct ColorRGB color_rgb;
   hex_to_rgb (color, &color_rgb);
 
-  // Apply tint on each pixel
   for (int y = 0; y < png_buffer->height; y++)
     {
       for (int x = 0; x < png_buffer->width; x++)

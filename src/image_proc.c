@@ -1,20 +1,25 @@
 #include "image_proc.h"
+#include "common.h"
 #include "config_parser.h"
 #include <logger.h>
+#include <math.h>
 #include <png.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 int
-load_images (struct PixelBuffer **png_buffer, struct PidgetConfigs *configs)
+load_images (struct PixelBuffer **png_buffer,
+             struct PidgetConfigs *pidget_configs)
 {
   int err;
-  *png_buffer = malloc (configs->images_count * sizeof (struct PixelBuffer));
+  *png_buffer
+      = malloc (pidget_configs->images_count * sizeof (struct PixelBuffer));
 
-  for (unsigned i = 0; i < configs->images_count; i++)
+  for (unsigned i = 0; i < pidget_configs->images_count; i++)
     {
-      err = read_png_file (configs->images[i], &(*png_buffer)[i]);
+      err = read_png_file (pidget_configs->images[i], &(*png_buffer)[i],
+                           pidget_configs);
       if (err)
         {
           log_message (3, "Error reading PNG file.\n");
@@ -26,7 +31,89 @@ load_images (struct PixelBuffer **png_buffer, struct PidgetConfigs *configs)
 }
 
 int
-read_png_file (char *filename, struct PixelBuffer *png_buffer)
+change_hue (struct PixelBuffer *png_buffer, float color)
+{
+  png_bytep *rows = (png_bytep *)png_buffer->pixels;
+  /* Change the hue */
+  for (int y = 0; y < png_buffer->height; y++)
+    {
+      for (int x = 0; x < png_buffer->width; x++)
+        {
+          png_bytep row = rows[y];
+          uint8_t rgb_arr[3];
+          uint8_t min, max;
+          float min_val, max_val, h, s, v;
+
+          rgb_arr[RED] = row[x * 4 + 0];
+          rgb_arr[GREEN] = row[x * 4 + 1];
+          rgb_arr[BLUE] = row[x * 4 + 2];
+
+          min = arr_min (rgb_arr, 3);
+          max = arr_max (rgb_arr, 3);
+          min_val = (float)rgb_arr[min];
+          max_val = (float)rgb_arr[max];
+
+          v = max_val;
+          s = (max_val - min_val) / max_val;
+          h = color;
+
+          float c = v * s;
+          float X = c * (1 - fabsf (fmodf (h / 60.0f, 2) - 1));
+          float m = v - c;
+
+          if (h >= 0 && h < 60)
+            {
+              rgb_arr[RED] = c;
+              rgb_arr[GREEN] = X;
+              rgb_arr[BLUE] = 0;
+            }
+          else if (h >= 60 && h < 120)
+            {
+              rgb_arr[RED] = X;
+              rgb_arr[GREEN] = c;
+              rgb_arr[BLUE] = 0;
+            }
+          else if (h >= 120 && h < 180)
+            {
+              rgb_arr[RED] = 0;
+              rgb_arr[GREEN] = c;
+              rgb_arr[BLUE] = X;
+            }
+          else if (h >= 180 && h < 240)
+            {
+              rgb_arr[RED] = 0;
+              rgb_arr[GREEN] = X;
+              rgb_arr[BLUE] = c;
+            }
+          else if (h >= 240 && h < 300)
+            {
+              rgb_arr[RED] = X;
+              rgb_arr[GREEN] = 0;
+              rgb_arr[BLUE] = c;
+            }
+          else
+            { /* h >= 300 && h < 360 */
+              rgb_arr[RED] = c;
+              rgb_arr[GREEN] = 0;
+              rgb_arr[BLUE] = X;
+            }
+
+          rgb_arr[RED] += m;
+          rgb_arr[GREEN] += m;
+          rgb_arr[BLUE] += m;
+
+          row[x * 4 + 0] = rgb_arr[RED];
+          row[x * 4 + 1] = rgb_arr[GREEN];
+          row[x * 4 + 2] = rgb_arr[BLUE];
+        }
+    }
+
+  return 0;
+}
+
+int
+read_png_file (char *filename, struct PixelBuffer *png_buffer,
+               struct PidgetConfigs *pidget_configs)
 {
   png_bytep *row_pointers = NULL;
 
@@ -115,6 +202,8 @@ read_png_file (char *filename, struct PixelBuffer *png_buffer)
   png_read_end (png_ptr, info_ptr);
 
   png_buffer->pixels = (void *)row_pointers;
+
+  change_hue (png_buffer, pidget_configs->color);
 
   fclose (fp);
 

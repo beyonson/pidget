@@ -1,4 +1,5 @@
 gravity: 9.8
+color: 100.0
 images:
   - images/frog-1.png
   - images/frog-2.png

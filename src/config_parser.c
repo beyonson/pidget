@@ -52,6 +52,18 @@ parse_config_file (struct PidgetConfigs *configs)
       return 1;
     }
 
+  if (!temp_configs->color)
+    {
+      log_message (2, "No color provided, using default.\n");
+      temp_configs->color = "default";
+    }
+
+  log_message (1, "Using images:\n");
+  for (int i = 0; i < temp_configs->images_count; i++)
+    {
+      log_message (1, "%s\n", temp_configs->images[i]);
+    }
+
   *configs = *temp_configs;
 
   /* Free the data */

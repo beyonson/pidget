@@ -1,8 +1,29 @@
 #include "image_proc.h"
+#include "config_parser.h"
 #include <logger.h>
 #include <png.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+int
+load_images (struct PixelBuffer **png_buffer, struct PidgetConfigs *configs)
+{
+  int err;
+  *png_buffer = malloc (configs->images_count * sizeof (struct PixelBuffer));
+
+  for (unsigned i = 0; i < configs->images_count; i++)
+    {
+      err = read_png_file (configs->images[i], &(*png_buffer)[i]);
+      if (err)
+        {
+          log_message (3, "Error reading PNG file.\n");
+          return 1;
+        }
+    }
+
+  return 0;
+}
 
 int
 read_png_file (char *filename, struct PixelBuffer *png_buffer)

@@ -271,7 +271,9 @@ error_trans:
 }
 
 void
-pidget_hop_random (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
+pidget_hop_random (struct XcbObject *xcb_object,
+                   struct PixelBuffer *png_buffer,
+                   struct PidgetConfigs *pidget_configs)
 {
   int rx, ry, xright;
   int mirrored = false;
@@ -302,7 +304,7 @@ pidget_hop_random (XcbObject *xcb_object, struct PixelBuffer *png_buffer)
   xright = (xcb_object->screen->width_in_pixels - rx - geom->border_width * 2
             - geom->width);
 
-  double gravity = 9.8;
+  double gravity = pidget_configs->gravity;
   int steps = 32;
   double v0 = 1.6 + ((double)rand () / (RAND_MAX + 1.0)) * (5 - 1.6);
   double theta = 0.8;
@@ -369,7 +371,8 @@ error_trans:
 
 void
 handle_event (XcbObject *xcb_object, xcb_generic_event_t *e,
-              struct PixelBuffer *png_buffer)
+              struct PixelBuffer *png_buffer,
+              struct PidgetConfigs *pidget_configs)
 {
   switch (e->response_type)
     {
@@ -398,7 +401,7 @@ handle_event (XcbObject *xcb_object, xcb_generic_event_t *e,
     case XCB_KEY_RELEASE:
       {
         /* Add handling code */
-        pidget_hop_random (xcb_object, png_buffer);
+        pidget_hop_random (xcb_object, png_buffer, pidget_configs);
         xcb_flush (xcb_object->conn);
         break;
       }

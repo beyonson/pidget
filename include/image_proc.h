@@ -9,6 +9,20 @@
 #define GREEN 1
 #define BLUE 2
 
+typedef struct ColorHSV
+{
+  float h;
+  float s;
+  float v;
+} ColorHSV;
+
+typedef struct ColorRGB
+{
+  float r;
+  float g;
+  float b;
+} ColorRGB;
+
 int 
 load_images (struct PixelBuffer **png_buffer, struct PidgetConfigs *configs);
 

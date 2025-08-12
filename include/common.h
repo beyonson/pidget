@@ -33,10 +33,4 @@ typedef struct PidgetConfigs
   struct PixelBuffer *png_buffer;
 } PidgetConfigs;
 
-/* Returns index of max value */
-uint8_t arr_max (uint8_t num_array[], uint8_t length);
-
-/* Returns index of min value */
-uint8_t arr_min (uint8_t num_array[], uint8_t length);
-
 #endif /* COMMON_H */

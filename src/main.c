@@ -1,3 +1,4 @@
+#include "config_parser.h"
 #include "image_proc.h"
 #include "logger.h"
 #include "xcb.h"
@@ -17,6 +18,7 @@ ev_signal signal_watcher;
 /* These will then be used to load into the backing_pixmaps
  * of our XcbObject */
 struct PixelBuffer *png_buffer;
+struct PidgetConfigs pidget_configs;
 struct XcbObject xcb_object;
 
 static void
@@ -27,7 +29,7 @@ xcb_event_cb (EV_P_ ev_io *w, int revents)
     {
       if (e != NULL)
         {
-          handle_event (&xcb_object, e, png_buffer);
+          handle_event (&xcb_object, e, png_buffer, &pidget_configs);
           free (e);
         }
       else
@@ -40,7 +42,7 @@ xcb_event_cb (EV_P_ ev_io *w, int revents)
 static void
 timeout_cb (EV_P_ ev_timer *w, int revents)
 {
-  pidget_hop_random (&xcb_object, png_buffer);
+  pidget_hop_random (&xcb_object, png_buffer, &pidget_configs);
 }
 
 static void
@@ -51,34 +53,86 @@ sigint_cb (struct ev_loop *loop, ev_signal *w, int revents)
 }
 
 int
-main ()
+main (int argc, char *argv[])
 {
-  int screen_num;
-  int num_images = 3;
+  /* Parse CLI options */
+  int err, opt;
+  char *config_file = NULL;
+
+  while ((opt = getopt (argc, argv, "hc:")) != -1)
+    {
+      switch (opt)
+        {
+        case 'c':
+          config_file = optarg;
+          break;
+        case 'h':
+          log_message (3, "Usage: %s [-c <config file>]\n", argv[0]);
+          exit (EXIT_SUCCESS);
+        case '?':
+          log_message (3, "Usage: %s [-c <config file>]\n", argv[0]);
+          exit (EXIT_FAILURE);
+        }
+    }
 
   set_log_level (0);
 
-  /* Load frog PNG file */
-  png_buffer = malloc (num_images * sizeof (struct PixelBuffer));
-  read_png_file ("images/frog-1.png", &png_buffer[0]);
-  read_png_file ("images/frog-2.png", &png_buffer[1]);
-  read_png_file ("images/frog-3.png", &png_buffer[2]);
+  /* Config file parsing and checking */
+  if (config_file != NULL)
+    {
+      log_message (0, "Config file: %s\n", config_file);
+      pidget_configs.file_name = config_file;
+      err = parse_config_file (&pidget_configs);
+    }
+  else
+    {
+      log_message (1, "Using default configuration.\n", config_file);
+      pidget_configs.file_name = "config.yml";
+      err = parse_config_file (&pidget_configs);
+    }
+
+  if (err)
+    {
+      log_message (3, "Error in configuration file.\n");
+      return 1;
+    }
+
+  int screen_num;
+
+  /* Load frog images from config file */
+  err = load_images (&png_buffer, &pidget_configs);
+  if (err)
+    {
+      log_message (3, "Error loading images.\n");
+      return 1;
+    }
 
   /* Make connection to X server and initialize our window */
   xcb_object.conn = xcb_connect (NULL, &screen_num);
   /* TODO: Make de-init, which frees all memory */
-  pidget_xcb_init (&xcb_object);
-  pidget_xcb_load_image (&xcb_object, png_buffer[0], false);
+  err = pidget_xcb_init (&xcb_object);
+  if (err)
+    {
+      log_message (3, "Error initializing XCB.\n");
+      return 1;
+    }
 
-  /* Map the window to our screen */
+  err = pidget_xcb_load_image (&xcb_object, png_buffer[0], false);
+  if (err)
+    {
+      log_message (3, "Error loading image with XCB.\n");
+      return 1;
+    }
+
   xcb_map_window (xcb_object.conn, xcb_object.win);
 
   pidget_set_origin (&xcb_object);
 
   xcb_flush (xcb_object.conn);
 
-  /* Event loop */
+  /* Event loop crud */
   struct ev_loop *loop = EV_DEFAULT;
+
   ev_timer_init (&timeout_watcher, timeout_cb, 2.0, 2.0);
   ev_timer_start (loop, &timeout_watcher);
 
@@ -91,8 +145,8 @@ main ()
 
   ev_run (loop, 0);
 
+  /* Clean-up */
   xcb_disconnect (xcb_object.conn);
-
   free (png_buffer);
 
   return 0;

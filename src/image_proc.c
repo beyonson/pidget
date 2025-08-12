@@ -1,11 +1,82 @@
 #include "image_proc.h"
+#include "common.h"
+#include "config_parser.h"
 #include <logger.h>
+#include <math.h>
 #include <png.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 int
-read_png_file (char *filename, struct PixelBuffer *png_buffer)
+load_images (struct PixelBuffer **png_buffer,
+             struct PidgetConfigs *pidget_configs)
+{
+  int err;
+  *png_buffer
+      = malloc (pidget_configs->images_count * sizeof (struct PixelBuffer));
+
+  for (unsigned i = 0; i < pidget_configs->images_count; i++)
+    {
+      err = read_png_file (pidget_configs->images[i], &(*png_buffer)[i],
+                           pidget_configs);
+      if (err)
+        {
+          log_message (3, "Error reading PNG file.\n");
+          return 1;
+        }
+    }
+
+  return 0;
+}
+
+int
+hex_to_rgb (const char *hexColor, struct ColorRGB *color_rgb)
+{
+  /* Skip the '#' if present */
+  const char *hex = (hexColor[0] == '#') ? hexColor + 1 : hexColor;
+  char component[3] = { 0 };
+
+  strncpy (component, hex, 2);
+  color_rgb->r = (int)strtol (component, NULL, 16);
+
+  strncpy (component, hex + 2, 2);
+  color_rgb->g = (int)strtol (component, NULL, 16);
+
+  strncpy (component, hex + 4, 2);
+  color_rgb->b = (int)strtol (component, NULL, 16);
+
+  return 0;
+}
+
+void
+apply_tint (struct PixelBuffer *png_buffer, char *color, float blend_factor)
+{
+  png_bytep *rows = (png_bytep *)png_buffer->pixels;
+  struct ColorRGB color_rgb;
+  hex_to_rgb (color, &color_rgb);
+
+  for (int y = 0; y < png_buffer->height; y++)
+    {
+      for (int x = 0; x < png_buffer->width; x++)
+        {
+          png_bytep row = rows[y];
+          if (row[x * 4 + 3] != 0)
+            {
+              row[x * 4 + 0] = (uint8_t)((1.0f - blend_factor) * row[x * 4 + 0]
+                                         + blend_factor * color_rgb.r);
+              row[x * 4 + 1] = (uint8_t)((1.0f - blend_factor) * row[x * 4 + 1]
+                                         + blend_factor * color_rgb.g);
+              row[x * 4 + 2] = (uint8_t)((1.0f - blend_factor) * row[x * 4 + 2]
+                                         + blend_factor * color_rgb.b);
+            }
+        }
+    }
+}
+
+int
+read_png_file (char *filename, struct PixelBuffer *png_buffer,
+               struct PidgetConfigs *pidget_configs)
 {
   png_bytep *row_pointers = NULL;
 
@@ -64,13 +135,9 @@ read_png_file (char *filename, struct PixelBuffer *png_buffer)
   png_buffer->height = png_get_image_height (png_ptr, info_ptr);
   png_buffer->bit_depth = png_get_bit_depth (png_ptr, info_ptr);
 
-  log_message (0, "Image width: %d\n", png_buffer->width);
-  log_message (0, "Image height: %d\n", png_buffer->height);
-  log_message (0, "Image depth: %d\n", png_buffer->bit_depth);
-
   if (png_buffer->bit_depth == 16)
     {
-      log_message (0, "Stripping depth to 8\n");
+      log_message (1, "Stripping image depth to 8\n");
       png_set_strip_16 (png_ptr);
     }
 
@@ -87,13 +154,17 @@ read_png_file (char *filename, struct PixelBuffer *png_buffer)
     }
 
   png_buffer->bytes_per_row = png_get_rowbytes (png_ptr, info_ptr);
-  log_message (0, "Image bytes per row: %d\n", png_buffer->bytes_per_row);
 
   png_read_image (png_ptr, row_pointers);
 
   png_read_end (png_ptr, info_ptr);
 
   png_buffer->pixels = (void *)row_pointers;
+
+  if (strcmp (pidget_configs->color, DEFAULT_COLOR) != 0)
+    {
+      apply_tint (png_buffer, pidget_configs->color, 0.5);
+    }
 
   fclose (fp);
 

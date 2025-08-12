@@ -20,7 +20,10 @@ int
 load_images (struct PixelBuffer **png_buffer, struct PidgetConfigs *configs);
 
 int
-change_hue (struct PixelBuffer *png_buffer, char *color);
+hex_to_rgb (const char *hexColor, struct ColorRGB *color_rgb);
+
+void
+apply_tint (struct PixelBuffer *png_buffer, char *color, float blend_factor);
 
 int
 read_png_file (char *filename, struct PixelBuffer *png_buffer, struct PidgetConfigs *configs);

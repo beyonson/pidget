@@ -6,14 +6,14 @@
 #include <unistd.h>
 
 int
-parse_config_file (struct PidgetConfigs *configs)
+parse_config_file (struct PidgetConfigs *pidget_configs)
 {
   /* TODO: Find a better way of doing this, doing this for now
    * since libCYAML is freeing this memory automatically
    */
   struct PidgetConfigs *temp_configs;
   temp_configs = malloc (sizeof (struct PidgetConfigs));
-  temp_configs->file_name = configs->file_name;
+  temp_configs->file_name = pidget_configs->file_name;
 
   /* CYAML value schema for entries of the data sequence. */
   static const cyaml_schema_value_t data_entry = {
@@ -64,7 +64,7 @@ parse_config_file (struct PidgetConfigs *configs)
       log_message (1, "%s\n", temp_configs->images[i]);
     }
 
-  *configs = *temp_configs;
+  *pidget_configs = *temp_configs;
 
   /* Free the data */
   cyaml_free (&cyaml_config, &top_schema, NULL, 0);

@@ -9,7 +9,7 @@ CLANG_FORMAT := clang-format -i --style=GNU
 
 SRC = $(shell find ./src -name *.c)
 
-_OBJ = common.o main.o logger.o xcb.o config_parser.o image_proc.o
+_OBJ = main.o logger.o xcb.o config_parser.o image_proc.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 _DEPS = logger.h xcb.h config_parser.h image_proc.h common.h

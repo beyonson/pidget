@@ -1,4 +1,5 @@
 #include "config_parser.h"
+#include "common.h"
 #include "image_proc.h"
 #include "logger.h"
 #include <cyaml/cyaml.h>
@@ -26,8 +27,11 @@ parse_config_file (struct PidgetConfigs *configs)
                        gravity),
     CYAML_FIELD_STRING_PTR ("color", CYAML_FLAG_OPTIONAL, struct PidgetConfigs,
                             color, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR ("image_path", CYAML_FLAG_OPTIONAL,
+                            struct PidgetConfigs, image_path, 0,
+                            MAX_FILEPATH_LENGTH),
     CYAML_FIELD_SEQUENCE ("images", CYAML_FLAG_POINTER, struct PidgetConfigs,
-                          images, &data_entry, 0, CYAML_UNLIMITED),
+                          images, &data_entry, 0, MAX_FILENAME_LENGTH),
     CYAML_FIELD_END
   };
 
@@ -56,6 +60,12 @@ parse_config_file (struct PidgetConfigs *configs)
     {
       log_message (2, "No color provided, using default.\n");
       temp_configs->color = "default";
+    }
+
+  if (!temp_configs->image_path)
+    {
+      log_message (2, "No image path provided, using default.\n");
+      temp_configs->image_path = DEFAULT_IMAGE_PATH;
     }
 
   log_message (1, "Using images:\n");

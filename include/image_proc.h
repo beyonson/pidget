@@ -9,13 +9,6 @@
 #define GREEN 1
 #define BLUE 2
 
-typedef struct ColorHSV
-{
-  float h;
-  float s;
-  float v;
-} ColorHSV;
-
 typedef struct ColorRGB
 {
   float r;

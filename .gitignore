@@ -1,5 +1,41 @@
-build/
 test/
 *.png
 !images/
 !images/*.png
+
+# Build system artifacts
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache/
+configure
+config.h.in
+config.h
+config.log
+config.status
+libtool
+ltmain.sh
+depcomp
+install-sh
+missing
+stamp-h1
+
+# Build output
+build/
+src/Makefile
+src/Makefile.in
+src/*.o
+src/*.lo
+src/*.la
+src/.deps/
+src/.libs/
+
+# Distribution tarballs
+*.tar.gz
+*.tar.bz2
+
+# Editor or OS junk
+*~
+*.swp
+.DS_Store
+

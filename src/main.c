@@ -14,8 +14,6 @@
 
 struct PidgetConfigs pidget_configs;
 
-#define NUM_THREADS 10
-
 void *
 pidget_thread (void *arg)
 {
@@ -55,32 +53,32 @@ main (int argc, char *argv[])
   /* Config file parsing and checking */
   if (config_file != NULL)
     {
-      log_message (0, "Config file: %s\n", config_file);
+      log_message (DEBUG, "Config file: %s\n", config_file);
       pidget_configs.file_name = config_file;
       err = parse_config_file (&pidget_configs);
     }
   else
     {
-      log_message (1, "Using default configuration.\n", config_file);
+      log_message (INFO, "Using default configuration.\n", config_file);
       pidget_configs.file_name = DEFAULT_CONFIG;
       err = parse_config_file (&pidget_configs);
     }
 
   if (err)
     {
-      log_message (3, "Error in configuration file.\n");
+      log_message (ERROR, "Error in configuration file.\n");
       return 1;
     }
 
   pthread_t *threads;
-  threads = malloc (NUM_THREADS * sizeof (pthread_t));
+  threads = malloc (pidget_configs.num_pidgets * sizeof (pthread_t));
 
-  for (int i = 0; i < NUM_THREADS; i++)
+  for (int i = 0; i < pidget_configs.num_pidgets; i++)
     {
       pthread_create (&threads[i], NULL, pidget_thread, &pidget_configs);
     }
 
-  for (int i = 0; i < NUM_THREADS; i++)
+  for (int i = 0; i < pidget_configs.num_pidgets; i++)
     {
       pthread_join (threads[i], NULL);
     }

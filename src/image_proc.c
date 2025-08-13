@@ -82,6 +82,7 @@ int
 read_png_file (char *filename, struct PixelBuffer *png_buffer,
                struct PidgetConfigs *pidget_configs)
 {
+  int err;
   png_bytep *row_pointers = NULL;
 
   FILE *fp = fopen (filename, "rb");
@@ -92,7 +93,12 @@ read_png_file (char *filename, struct PixelBuffer *png_buffer,
 
   /* Check that loaded file is PNG */
   png_byte header[PNG_SIG_CMP_BYTES];
-  fread (header, 1, PNG_SIG_CMP_BYTES, fp);
+  err = fread (header, 1, PNG_SIG_CMP_BYTES, fp);
+  if (err != PNG_SIG_CMP_BYTES)
+    {
+      log_message (ERROR, "PNG signature read failed\n");
+      return 1;
+    }
 
   int is_png = 0;
   is_png = !png_sig_cmp (header, 0, PNG_SIG_CMP_BYTES);
@@ -100,7 +106,7 @@ read_png_file (char *filename, struct PixelBuffer *png_buffer,
   if (!is_png)
     {
       fclose (fp);
-      log_message (3, "File loaded is not a PNG\n");
+      log_message (ERROR, "File loaded is not a PNG\n");
       return 1;
     }
 

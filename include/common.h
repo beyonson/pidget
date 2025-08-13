@@ -35,6 +35,7 @@ typedef struct PidgetConfigs
   char *image_path;
   uint8_t images_count;
   char **images;
+  int num_pidgets;
   struct PixelBuffer *png_buffer;
 } PidgetConfigs;
 

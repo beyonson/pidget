@@ -1,6 +1,11 @@
 gravity: 9.8
 color: "#2200ff"
+
+#image_path: "/my/image/dir/"
+
+# Default checks for images in /usr/share/local/pidget/
+# Currently only supports three images
 images:
-  - images/frog-1.png
-  - images/frog-2.png
-  - images/frog-3.png
+  - frog-1.png
+  - frog-2.png
+  - frog-3.png

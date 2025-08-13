@@ -11,6 +11,6 @@ typedef struct PidgetCallbackData
 } PidgetCallbackData;
 
 int 
-launch_pidget (struct PidgetConfigs *pidget_configs);
+launch_pidget (struct PidgetConfigs *pidget_configs, float start_timeout);
 
 #endif /* PIDGET_H */

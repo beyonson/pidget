@@ -18,8 +18,9 @@ struct PidgetConfigs pidget_configs1;
 void *
 pidget_thread (void *arg)
 {
+  float start_timeout = 1.6 + ((double)rand () / (RAND_MAX + 1.0)) * (5 - 1.6);
   struct PidgetConfigs *configs = (struct PidgetConfigs *)arg;
-  launch_pidget (configs);
+  launch_pidget (configs, start_timeout);
   return NULL;
 }
 

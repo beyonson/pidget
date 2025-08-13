@@ -23,6 +23,7 @@ compile
 
 # Build output
 build/
+src/pidget
 src/Makefile
 src/Makefile.in
 src/*.o

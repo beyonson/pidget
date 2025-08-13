@@ -1,10 +1,13 @@
 gravity: 9.8
 
-#color: "#XXXXXX" or "default"
+# color: "#XXXXXX" or "default" or "random"
 color: "default"
 
+# 1 -> 10
+num_pidgets: 0
+
 # Checks for images in /usr/share/local/pidget/ by default
-#image_path: "/my/image/dir/"
+# image_path: "/my/image/dir/"
 
 # Currently only supports three images
 images:

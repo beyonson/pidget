@@ -15,12 +15,13 @@
 ## Table of Contents
 
 * [Getting Started](#getting-started)
+  * [Dependencies](#dependencies)
   * [Installation](#installation)
   * [First Steps](#first-steps)
 
 ## Getting Started
 
-### Installation
+### Dependencies
 
 The following dependencies are needed to build pidget:
 - automake
@@ -43,6 +44,11 @@ sudo apt install automake autoconf libxcb-errors-dev libxcb-icccm4-dev libxcb-im
      libxcb-util-dev libpng-dev libcyaml-dev libev-dev libyaml-dev
 ```
 
+A compositor is also required to render in transparent backgrounds of pet images. Pidget 
+has been tested with picom (`sudo apt install picom`).
+
+### Installation
+
 To build pidget run:
 ```
 aclocal
@@ -54,7 +60,7 @@ sudo make install
 
 ### First Steps
 
-To run Pidget, simply run:
+To launch Pidget, simply run:
 ```
 pidget
 ```

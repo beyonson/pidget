@@ -23,14 +23,29 @@
 ### Installation
 
 The following dependencies are needed to build pidget:
+- automake
+- autoconf
 - libev
 - libxcb
+- libxcb-util
+- libxcb-icccm
+- libxcb-image
 - libpng
 - libcyaml
-- xcb-errors
+- libyaml
+- libpng
+- libxcb-errors
+
+To install dependencies on Ubuntu, run:
+
+```
+sudo apt install automake autoconf libxcb-errors-dev libxcb-icccm4-dev libxcb-image0-dev \
+     libxcb-util-dev libpng-dev libcyaml-dev libev-dev libyaml-dev
+```
 
 To build pidget run:
 ```
+aclocal
 autoreconf -i
 ./configure
 make
@@ -38,6 +53,11 @@ sudo make install
 ```
 
 ### First Steps
+
+To run Pidget, simply run:
+```
+pidget
+```
 
 The default config file is provided in the root of this repository `config.yml`.
 This file can be used as a template, and passed into pidget using the -c flag, for

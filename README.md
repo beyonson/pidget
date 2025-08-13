@@ -54,6 +54,11 @@ sudo make install
 
 ### First Steps
 
+To run Pidget, simply run:
+```
+pidget
+```
+
 The default config file is provided in the root of this repository `config.yml`.
 This file can be used as a template, and passed into pidget using the -c flag, for
 example:

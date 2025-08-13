@@ -4,6 +4,10 @@
 #include <xcb/xcb.h>
 
 #define DEFAULT_COLOR "default"
+#define DEFAULT_CONFIG "/usr/local/share/pidget/config.yml"
+#define DEFAULT_IMAGE_PATH "/usr/local/share/pidget/"
+#define MAX_FILEPATH_LENGTH 255
+#define MAX_FILENAME_LENGTH 255
 
 typedef struct XcbObject
 {
@@ -25,9 +29,10 @@ struct PixelBuffer
 
 typedef struct PidgetConfigs 
 {
-  char *file_name;
   char *color;
+  char *file_name;
   float gravity;
+  char *image_path;
   uint8_t images_count;
   char **images;
   struct PixelBuffer *png_buffer;

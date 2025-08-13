@@ -87,7 +87,7 @@ main (int argc, char *argv[])
   else
     {
       log_message (1, "Using default configuration.\n", config_file);
-      pidget_configs.file_name = "config.yml";
+      pidget_configs.file_name = DEFAULT_CONFIG;
       err = parse_config_file (&pidget_configs);
     }
 

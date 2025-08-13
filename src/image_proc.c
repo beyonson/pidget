@@ -18,8 +18,10 @@ load_images (struct PixelBuffer **png_buffer,
 
   for (unsigned i = 0; i < pidget_configs->images_count; i++)
     {
-      err = read_png_file (pidget_configs->images[i], &(*png_buffer)[i],
-                           pidget_configs);
+      char image_file[MAX_FILEPATH_LENGTH + MAX_FILENAME_LENGTH];
+      snprintf (image_file, sizeof (image_file), "%s%s",
+                pidget_configs->image_path, pidget_configs->images[i]);
+      err = read_png_file (image_file, &(*png_buffer)[i], pidget_configs);
       if (err)
         {
           log_message (3, "Error reading PNG file.\n");

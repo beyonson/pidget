@@ -6,6 +6,7 @@ pidget_SOURCES = \
     image_proc.c \
     logger.c \
     main.c \
+		pidget.c \
     xcb.c
 
 AM_CFLAGS = \

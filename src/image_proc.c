@@ -16,6 +16,8 @@ load_images (struct PixelBuffer **png_buffer,
   *png_buffer
       = malloc (pidget_configs->images_count * sizeof (struct PixelBuffer));
 
+  log_message (0, "Loading %d images.\n", pidget_configs->images_count);
+
   for (unsigned i = 0; i < pidget_configs->images_count; i++)
     {
       char image_file[MAX_FILEPATH_LENGTH + MAX_FILENAME_LENGTH];

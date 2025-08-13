@@ -46,7 +46,8 @@ sigint_cb (struct ev_loop *loop, ev_signal *w, int revents)
 }
 
 int
-launch_pidget (struct PidgetConfigs *pidget_configs, float start_timeout)
+launch_pidget (struct PidgetConfigs *pidget_configs, float start_timeout,
+               float movement_timeout)
 {
   ev_timer timeout_watcher;
   ev_io xcb_watcher;
@@ -100,7 +101,8 @@ launch_pidget (struct PidgetConfigs *pidget_configs, float start_timeout)
   /* Event loop crud */
   struct ev_loop *loop = ev_loop_new (EVFLAG_AUTO);
 
-  ev_timer_init (&timeout_watcher, timeout_cb, start_timeout, 2.0);
+  ev_timer_init (&timeout_watcher, timeout_cb, start_timeout,
+                 movement_timeout);
   ev_timer_start (loop, &timeout_watcher);
   timeout_watcher.data = pidget_data;
 

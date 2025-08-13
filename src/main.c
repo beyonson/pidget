@@ -13,14 +13,17 @@
 #include <xcb/xcb.h>
 
 struct PidgetConfigs pidget_configs;
-struct PidgetConfigs pidget_configs1;
+
+#define NUM_THREADS 10
 
 void *
 pidget_thread (void *arg)
 {
   float start_timeout = 1.6 + ((double)rand () / (RAND_MAX + 1.0)) * (5 - 1.6);
+  float movement_timeout
+      = 2.0 + ((double)rand () / (RAND_MAX + 1.0)) * (10 - 2.0);
   struct PidgetConfigs *configs = (struct PidgetConfigs *)arg;
-  launch_pidget (configs, start_timeout);
+  launch_pidget (configs, start_timeout, movement_timeout);
   return NULL;
 }
 
@@ -69,17 +72,18 @@ main (int argc, char *argv[])
       return 1;
     }
 
-  pidget_configs1 = pidget_configs;
+  pthread_t *threads;
+  threads = malloc (NUM_THREADS * sizeof (pthread_t));
 
-  // launch_pidget (&pidget_configs);
+  for (int i = 0; i < NUM_THREADS; i++)
+    {
+      pthread_create (&threads[i], NULL, pidget_thread, &pidget_configs);
+    }
 
-  pthread_t thread1, thread2;
-
-  pthread_create (&thread1, NULL, pidget_thread, &pidget_configs);
-  pthread_create (&thread2, NULL, pidget_thread, &pidget_configs1);
-
-  pthread_join (thread1, NULL);
-  pthread_join (thread2, NULL);
+  for (int i = 0; i < NUM_THREADS; i++)
+    {
+      pthread_join (threads[i], NULL);
+    }
 
   return 0;
 }

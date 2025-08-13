@@ -23,13 +23,12 @@ typedef struct ColorRGB
   float b;
 } ColorRGB;
 
-int 
-load_images (struct PixelBuffer **png_buffer, struct PidgetConfigs *configs);
+int load_images (struct PixelBuffer **png_buffer,
+                 struct PidgetConfigs *configs);
 
-int
-change_hue (struct PixelBuffer *png_buffer, char *color);
+int change_hue (struct PixelBuffer *png_buffer, char *color);
 
-int
-read_png_file (char *filename, struct PixelBuffer *png_buffer, struct PidgetConfigs *configs);
+int read_png_file (char *filename, struct PixelBuffer *png_buffer,
+                   struct PidgetConfigs *configs);
 
 #endif // IMAGE_PROC_H

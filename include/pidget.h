@@ -10,7 +10,7 @@ typedef struct PidgetCallbackData
   struct XcbObject *xcb_object;
 } PidgetCallbackData;
 
-int 
-launch_pidget (struct PidgetConfigs *pidget_configs, float start_timeout);
+int launch_pidget (struct PidgetConfigs *pidget_configs, float start_timeout,
+                   float movement_timeout);
 
 #endif /* PIDGET_H */

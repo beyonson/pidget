@@ -19,7 +19,11 @@ typedef struct ColorRGB
 int load_images (struct PixelBuffer **png_buffer,
                  struct PidgetConfigs *configs);
 
-int hex_to_rgb (const char *hexColor, struct ColorRGB *color_rgb);
+int
+hex_to_rgb (const char *hexColor, struct ColorRGB *color_rgb);
+
+void
+apply_tint (struct PixelBuffer *png_buffer, char *color, float blend_factor);
 
 void apply_tint (struct PixelBuffer *png_buffer, char *color,
                  float blend_factor);

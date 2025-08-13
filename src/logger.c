@@ -4,6 +4,9 @@
 
 static LogLevel current_log_level = INFO;
 
+static const char *log_level_strings[]
+    = { "DEBUG", "INFO", "WARNING", "ERROR" };
+
 void
 set_log_level (LogLevel level)
 {
@@ -17,6 +20,11 @@ log_message (LogLevel level, const char *fmt, ...)
     {
       return;
     }
+
+  const char *level_str
+      = (level >= 0 && level <= ERROR) ? log_level_strings[level] : "UNKNOWN";
+
+  printf ("[%s] ", level_str);
 
   va_list args;
 

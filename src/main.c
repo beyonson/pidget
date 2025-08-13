@@ -32,7 +32,9 @@ main (int argc, char *argv[])
   int err, opt;
   char *config_file = NULL;
 
-  while ((opt = getopt (argc, argv, "hc:")) != -1)
+  set_log_level (2);
+
+  while ((opt = getopt (argc, argv, "hc:v::")) != -1)
     {
       switch (opt)
         {
@@ -40,15 +42,31 @@ main (int argc, char *argv[])
           config_file = optarg;
           break;
         case 'h':
-          log_message (3, "Usage: %s [-c <config file>]\n", argv[0]);
+          printf ("Usage: %s [-c <config file> -v (verbose)]\n", argv[0]);
           exit (EXIT_SUCCESS);
+        case 'v':
+          if (!optarg)
+            {
+              set_log_level (1);
+            }
+          else if (*optarg == 'v')
+            {
+              set_log_level (0);
+            }
+          else
+            {
+              log_message (ERROR,
+                           "Usage: %s [-c <config file> -v (verbose)]\n",
+                           argv[0]);
+              exit (EXIT_FAILURE);
+            }
+          break;
         case '?':
-          log_message (3, "Usage: %s [-c <config file>]\n", argv[0]);
+          log_message (ERROR, "Usage: %s [-c <config file> -v (verbose)]\n",
+                       argv[0]);
           exit (EXIT_FAILURE);
         }
     }
-
-  set_log_level (0);
 
   /* Config file parsing and checking */
   if (config_file != NULL)

@@ -18,7 +18,7 @@ typedef struct XcbObject
   xcb_screen_t *screen;
 } XcbObject;
 
-struct PixelBuffer 
+struct PixelBuffer
 {
   int width;
   int height;
@@ -27,7 +27,7 @@ struct PixelBuffer
   void *pixels;
 };
 
-typedef struct PidgetConfigs 
+typedef struct PidgetConfigs
 {
   char *color;
   char *file_name;
@@ -35,6 +35,7 @@ typedef struct PidgetConfigs
   char *image_path;
   uint8_t images_count;
   char **images;
+  int num_pidgets;
   struct PixelBuffer *png_buffer;
 } PidgetConfigs;
 

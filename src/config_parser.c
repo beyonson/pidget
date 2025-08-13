@@ -25,6 +25,8 @@ parse_config_file (struct PidgetConfigs *pidget_configs)
   static const cyaml_schema_field_t top_mapping_schema[] = {
     CYAML_FIELD_FLOAT ("gravity", CYAML_FLAG_DEFAULT, struct PidgetConfigs,
                        gravity),
+    CYAML_FIELD_INT ("num_pidgets", CYAML_FLAG_OPTIONAL, struct PidgetConfigs,
+                     num_pidgets),
     CYAML_FIELD_STRING_PTR ("color", CYAML_FLAG_OPTIONAL, struct PidgetConfigs,
                             color, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR ("image_path", CYAML_FLAG_OPTIONAL,
@@ -66,6 +68,13 @@ parse_config_file (struct PidgetConfigs *pidget_configs)
     {
       log_message (2, "No image path provided, using default.\n");
       temp_configs->image_path = DEFAULT_IMAGE_PATH;
+    }
+
+  if (!temp_configs->num_pidgets || temp_configs->num_pidgets > 10)
+    {
+      log_message (2, "Warning: invalid num_pidgets: %d, defaulting to 1\n",
+                   temp_configs->num_pidgets);
+      temp_configs->num_pidgets = 1;
     }
 
   log_message (1, "Using images:\n");

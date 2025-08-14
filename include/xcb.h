@@ -24,6 +24,8 @@ void pidget_hop_random (XcbObject *xcb_object, struct PixelBuffer *png_buffer,
 
 void pidget_move_random (XcbObject *xcb_object);
 
+int lockscreen_xcb_init (XcbObject *xcb_object);
+
 int pidget_xcb_init (XcbObject *xcb_object);
 
 int pidget_xcb_load_image (XcbObject *xcb_object,

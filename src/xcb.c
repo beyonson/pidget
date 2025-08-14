@@ -13,6 +13,7 @@
 #include <xcb/xcb.h>
 #include <xcb/xcb_aux.h>
 #include <xcb/xcb_errors.h>
+#include <xcb/xcb_ewmh.h>
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_image.h>
 
@@ -35,6 +36,79 @@ find_argb_visual (xcb_connection_t *conn, xcb_screen_t *screen)
         }
     }
   return NULL;
+}
+
+int
+lockscreen_xcb_init (XcbObject *xcb_object)
+{
+  /* Get the first screen */
+  xcb_object->screen
+      = xcb_setup_roots_iterator (xcb_get_setup (xcb_object->conn)).data;
+
+  /* Request a window ID */
+  xcb_object->win = xcb_generate_id (xcb_object->conn);
+
+  /* Set up atoms */
+  xcb_intern_atom_cookie_t motif_cookie = xcb_intern_atom (
+      xcb_object->conn, 0, strlen ("_MOTIF_WM_HINTS"), "_MOTIF_WM_HINTS");
+  xcb_intern_atom_reply_t *motif_reply
+      = xcb_intern_atom_reply (xcb_object->conn, motif_cookie, NULL);
+
+  /* Set window attributes */
+  /* NOTE: Indices of win_events must align with mask according to xcb_cw_t */
+  const uint32_t border_width[] = { 0 };
+  const uint32_t border_color[] = { 0xFF09224A };
+
+  /* TODO: allow non-ARGB visual */
+  xcb_visualtype_t *argb_visual
+      = find_argb_visual (xcb_object->conn, xcb_object->screen);
+
+  if (!argb_visual)
+    {
+      log_message (3, "No ARGB visual found\n");
+      return 1;
+    }
+
+  xcb_colormap_t colormap = xcb_generate_id (xcb_object->conn);
+  xcb_create_colormap (xcb_object->conn, XCB_COLORMAP_ALLOC_NONE, colormap,
+                       xcb_object->screen->root, argb_visual->visual_id);
+
+  xcb_object->win = xcb_generate_id (xcb_object->conn);
+  uint32_t mask = XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL | XCB_CW_EVENT_MASK
+                  | XCB_CW_COLORMAP;
+  uint32_t valwin[4];
+  valwin[0] = 0xFFFFFFFF;
+  valwin[1] = 0xFFFFFFFF;
+  valwin[2] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_RELEASE
+              | XCB_EVENT_MASK_KEY_PRESS;
+  valwin[3] = colormap;
+
+  /* Create the window */
+  xcb_create_window (
+      xcb_object->conn, 32, xcb_object->win, xcb_object->screen->root, 0, 0,
+      xcb_object->screen->width_in_pixels,
+      xcb_object->screen->height_in_pixels, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+      argb_visual->visual_id, mask, valwin);
+
+  // Set fullscreen hint using EWMH
+  xcb_ewmh_connection_t ewmh;
+  xcb_intern_atom_cookie_t *ewmh_cookie
+      = xcb_ewmh_init_atoms (xcb_object->conn, &ewmh);
+  if (!xcb_ewmh_init_atoms_replies (&ewmh, ewmh_cookie, NULL))
+    {
+      // Handle error
+    }
+
+  xcb_atom_t state_fullscreen = ewmh._NET_WM_STATE_FULLSCREEN;
+  xcb_change_property (xcb_object->conn, XCB_PROP_MODE_REPLACE,
+                       xcb_object->win, ewmh._NET_WM_STATE, XCB_ATOM_ATOM,
+                       32, // format
+                       1,  // number of elements
+                       &state_fullscreen);
+
+  xcb_flush (xcb_object->conn);
+
+  return 0;
 }
 
 int
@@ -100,6 +174,11 @@ pidget_xcb_init (XcbObject *xcb_object)
                                 XCB_CW_BORDER_PIXEL, border_color);
   xcb_configure_window (xcb_object->conn, xcb_object->win,
                         XCB_CONFIG_WINDOW_BORDER_WIDTH, border_width);
+
+  const static uint32_t values[] = { XCB_STACK_MODE_ABOVE };
+  xcb_configure_window (xcb_object->conn, xcb_object->win,
+                        XCB_CONFIG_WINDOW_STACK_MODE, values);
+  xcb_flush (xcb_object->conn); // Ensure the request is sent to the X server
 
   /* Set motif hints to remove window decorations */
   xcb_change_property (xcb_object->conn, XCB_PROP_MODE_REPLACE,
@@ -218,9 +297,11 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer,
   xcb_image_put (xcb_object->conn, xcb_object->backing_pixmap, xcb_object->gc,
                  image, 0, 0, 0);
 
-  uint32_t size_values[] = { png_buffer.width, png_buffer.height };
+  uint32_t size_values[]
+      = { png_buffer.width, png_buffer.height, XCB_STACK_MODE_ABOVE };
   xcb_configure_window (xcb_object->conn, xcb_object->win,
-                        XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT,
+                        XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT
+                            | XCB_CONFIG_WINDOW_STACK_MODE,
                         size_values);
   /* Send image data to X server */
   xcb_copy_area (xcb_object->conn, xcb_object->backing_pixmap, xcb_object->win,

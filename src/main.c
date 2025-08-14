@@ -21,7 +21,7 @@ pidget_thread (void *arg)
   float movement_timeout
       = 2.0 + ((double)rand () / (RAND_MAX + 1.0)) * (10 - 2.0);
   struct PidgetConfigs *configs = (struct PidgetConfigs *)arg;
-  launch_pidget (configs, start_timeout, movement_timeout);
+  launch_pidget_lock (configs, start_timeout, movement_timeout);
   return NULL;
 }
 

@@ -5,7 +5,7 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SRCDIR([src/main.c])
 
 # Checks for libraries
-PKG_CHECK_MODULES([XCB], [xcb-icccm xcb-image xcb-aux xcb-errors])
+PKG_CHECK_MODULES([XCB], [xcb-icccm xcb-image xcb-aux xcb-errors xcb-ewmh])
 PKG_CHECK_MODULES([PNG], [libpng])
 #PKG_CHECK_MODULES([EV], [libev])
 PKG_CHECK_MODULES([CYAML], [libcyaml])

@@ -19,6 +19,9 @@ xcb_visualtype_t *find_argb_visual (xcb_connection_t *conn,
 
 void pidget_set_origin (XcbObject *xcb_object);
 
+int pidget_set_origin_on_win (XcbObject *xcb_object,
+                              struct PixelBuffer *png_buffer);
+
 void pidget_hop_lockscreen (struct XcbObject *xcb_object,
                             struct PixelBuffer *png_buffer,
                             struct PidgetConfigs *pidget_configs);

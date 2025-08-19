@@ -35,8 +35,8 @@ static void
 timeout_cb (EV_P_ ev_timer *w, int revents)
 {
   struct PidgetCallbackData *data = (PidgetCallbackData *)w->data;
-  // pidget_hop_lockscreen (data->xcb_object, data->png_buffer,
-  // data->pidget_configs);
+  pidget_hop_lockscreen (data->xcb_object, data->png_buffer,
+                         data->pidget_configs);
 }
 
 static void
@@ -88,13 +88,7 @@ launch_pidget_lock (struct PidgetConfigs *pidget_configs, float start_timeout,
   xcb_map_window (lockscreen_xcb_object.conn, lockscreen_xcb_object.win);
   xcb_flush (lockscreen_xcb_object.conn);
 
-  // err = pidget_xcb_init (&xcb_object);
-  // if (err)
-  //   {
-  //     log_message (3, "Error initializing XCB, pidget.\n");
-  //     return 1;
-  //   }
-
+  pidget_set_origin_on_win (&lockscreen_xcb_object, &png_buffer[0]);
   err = pidget_xcb_load_image_on_win (&lockscreen_xcb_object, png_buffer[0],
                                       false);
   if (err)
@@ -112,6 +106,11 @@ launch_pidget_lock (struct PidgetConfigs *pidget_configs, float start_timeout,
                  movement_timeout);
   ev_timer_start (loop, &timeout_watcher);
   timeout_watcher.data = pidget_data;
+
+  ev_io_init (&xcb_watcher, xcb_event_cb,
+              xcb_get_file_descriptor (lockscreen_xcb_object.conn), EV_READ);
+  ev_io_start (loop, &xcb_watcher);
+  xcb_watcher.data = pidget_data;
 
   //  ev_signal_init (&signal_watcher, sigint_cb, SIGINT);
   //  ev_signal_start (loop, &signal_watcher);

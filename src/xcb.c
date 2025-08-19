@@ -95,7 +95,7 @@ lockscreen_xcb_init (XcbObject *xcb_object)
   xcb_create_window (
       xcb_object->conn, 32, xcb_object->win, xcb_object->screen->root, 0, 0,
       xcb_object->screen->width_in_pixels / 4,
-      xcb_object->screen->height_in_pixels / 4, 0,
+      xcb_object->screen->height_in_pixels / 2, 0,
       XCB_WINDOW_CLASS_INPUT_OUTPUT, argb_visual->visual_id, mask, valwin);
 
   // Set fullscreen hint using EWMH
@@ -118,19 +118,19 @@ lockscreen_xcb_init (XcbObject *xcb_object)
 
   xcb_icccm_size_hints_set_max_size (&hints,
                                      xcb_object->screen->width_in_pixels / 4,
-                                     xcb_object->screen->height_in_pixels / 4);
+                                     xcb_object->screen->height_in_pixels / 2);
   xcb_icccm_size_hints_set_min_size (&hints,
                                      xcb_object->screen->width_in_pixels / 4,
-                                     xcb_object->screen->height_in_pixels / 4);
+                                     xcb_object->screen->height_in_pixels / 2);
   xcb_icccm_set_wm_size_hints (xcb_object->conn, xcb_object->win,
                                XCB_ATOM_WM_NORMAL_HINTS, &hints);
 
-  // xcb_atom_t state_fullscreen = ewmh._NET_WM_STATE_FULLSCREEN;
-  // xcb_change_property (xcb_object->conn, XCB_PROP_MODE_REPLACE,
-  //                      xcb_object->win, ewmh._NET_WM_STATE, XCB_ATOM_ATOM,
-  //                      32, // format
-  //                      1,  // number of elements
-  //                      &state_fullscreen);
+  //  xcb_atom_t state_fullscreen = ewmh._NET_WM_STATE_FULLSCREEN;
+  //  xcb_change_property (xcb_object->conn, XCB_PROP_MODE_REPLACE,
+  //                       xcb_object->win, ewmh._NET_WM_STATE, XCB_ATOM_ATOM,
+  //                       32, // format
+  //                       1,  // number of elements
+  //                       &state_fullscreen);
 
   xcb_flush (xcb_object->conn);
 
@@ -246,6 +246,11 @@ pidget_xcb_load_image_on_win (XcbObject *xcb_object,
               uint8_t g = row[x * 4 + 1];
               uint8_t b = row[x * 4 + 2];
               uint8_t a = row[x * 4 + 3];
+              if (a == 0)
+                {
+                  a = 255;
+                  r = g = b = a;
+                }
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
               frog_bytes[dst_i + 0] = b;
@@ -274,6 +279,11 @@ pidget_xcb_load_image_on_win (XcbObject *xcb_object,
               uint8_t g = row[src_x * 4 + 1];
               uint8_t b = row[src_x * 4 + 2];
               uint8_t a = row[src_x * 4 + 3];
+              if (a == 0)
+                {
+                  a = 255;
+                  r = g = b = a;
+                }
 
               int dst_i = (y * png_buffer.width + x) * 4;
 
@@ -444,6 +454,28 @@ pidget_xcb_load_image (XcbObject *xcb_object, struct PixelBuffer png_buffer,
   return 0;
 }
 
+int
+pidget_set_origin_on_win (XcbObject *xcb_object,
+                          struct PixelBuffer *png_buffer)
+{
+  int ybelow;
+  xcb_get_geometry_reply_t *geom;
+
+  xcb_get_geometry_cookie_t gg_cookie
+      = xcb_get_geometry (xcb_object->conn, xcb_object->win);
+
+  geom = xcb_get_geometry_reply (xcb_object->conn, gg_cookie, NULL);
+
+  ybelow = (geom->height - png_buffer->height);
+
+  xcb_object->origin_x = 0;
+  xcb_object->origin_y = ybelow;
+
+  free (geom);
+
+  return 0;
+}
+
 void
 pidget_set_origin (XcbObject *xcb_object)
 {
@@ -475,7 +507,7 @@ pidget_set_origin (XcbObject *xcb_object)
   uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
   uint32_t values[] = { 0, ybelow };
   xcb_object->origin_x = 0;
-  xcb_object->origin_y = ybelow;
+  xcb_object->origin_y = 0;
 
   xcb_configure_window (xcb_object->conn, xcb_object->win, mask, values);
   xcb_flush (xcb_object->conn);
@@ -500,10 +532,10 @@ pidget_xcb_erase_area (struct XcbObject *xcb_object,
         {
           int dst_i = (y * png_buffer.width + x) * 4;
 
-          uint8_t r = 0;
-          uint8_t g = 0;
-          uint8_t b = 0;
-          uint8_t a = 0;
+          uint8_t r = 255;
+          uint8_t g = 255;
+          uint8_t b = 255;
+          uint8_t a = 255;
 
           frog_bytes[dst_i + 0] = b;
           frog_bytes[dst_i + 1] = g;
@@ -554,8 +586,7 @@ pidget_hop_lockscreen (struct XcbObject *xcb_object,
   rx = xcb_object->origin_x;
   ry = xcb_object->origin_y;
 
-  xright = (xcb_object->screen->width_in_pixels - rx - geom->border_width * 2
-            - geom->width);
+  xright = (geom->width - rx - png_buffer->width);
 
   double gravity = pidget_configs->gravity;
   int steps = 32;
@@ -575,15 +606,15 @@ pidget_hop_lockscreen (struct XcbObject *xcb_object,
   int left;
   if (xright - range < 0)
     {
+      if (rx - range < 0)
+        {
+          return;
+        }
       left = 1;
     }
   else if (rx - range < 0)
     {
       left = 0;
-    }
-  else
-    {
-      left = (rand () % (1 - 0 + 1));
     }
   mirrored = left;
 
@@ -599,18 +630,22 @@ pidget_hop_lockscreen (struct XcbObject *xcb_object,
           * ((vy0 * current_time)
              - (0.5 * gravity * (current_time * current_time)));
 
+      pidget_xcb_erase_area (xcb_object, png_buffer[1]);
       xcb_object->origin_x = rx + x;
       xcb_object->origin_y = ry - y;
 
       if (left)
         {
-          xcb_object->origin_x = rx + x;
+          xcb_object->origin_x = rx - x;
         }
 
       if (current_time > time_of_flight * .5)
         {
-          pidget_xcb_erase_area (xcb_object, png_buffer[1]);
           pidget_xcb_load_image_on_win (xcb_object, png_buffer[1], mirrored);
+        }
+      else
+        {
+          pidget_xcb_load_image_on_win (xcb_object, png_buffer[2], mirrored);
         }
 
       xcb_flush (xcb_object->conn);

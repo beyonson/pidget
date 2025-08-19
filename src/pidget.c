@@ -35,7 +35,8 @@ static void
 timeout_cb (EV_P_ ev_timer *w, int revents)
 {
   struct PidgetCallbackData *data = (PidgetCallbackData *)w->data;
-  pidget_hop_random (data->xcb_object, data->png_buffer, data->pidget_configs);
+  // pidget_hop_lockscreen (data->xcb_object, data->png_buffer,
+  // data->pidget_configs);
 }
 
 static void
@@ -59,7 +60,6 @@ launch_pidget_lock (struct PidgetConfigs *pidget_configs, float start_timeout,
   /* These will then be used to load into the backing_pixmaps
    * of our XcbObject */
   struct PixelBuffer *png_buffer;
-  struct XcbObject xcb_object;
   struct XcbObject lockscreen_xcb_object;
   struct PidgetCallbackData *pidget_data
       = malloc (sizeof (struct PidgetCallbackData));
@@ -73,11 +73,10 @@ launch_pidget_lock (struct PidgetConfigs *pidget_configs, float start_timeout,
     }
 
   pidget_data->png_buffer = png_buffer;
-  pidget_data->xcb_object = &xcb_object;
+  pidget_data->xcb_object = &lockscreen_xcb_object;
   pidget_data->pidget_configs = pidget_configs;
 
   /* Make connection to X server and initialize our window */
-  xcb_object.conn = xcb_connect (NULL, &screen_num);
   lockscreen_xcb_object.conn = xcb_connect (NULL, &screen_num);
   /* TODO: Make de-init, which frees all memory */
   err = lockscreen_xcb_init (&lockscreen_xcb_object);
@@ -89,23 +88,20 @@ launch_pidget_lock (struct PidgetConfigs *pidget_configs, float start_timeout,
   xcb_map_window (lockscreen_xcb_object.conn, lockscreen_xcb_object.win);
   xcb_flush (lockscreen_xcb_object.conn);
 
-  err = pidget_xcb_init (&xcb_object);
-  if (err)
-    {
-      log_message (3, "Error initializing XCB, pidget.\n");
-      return 1;
-    }
+  // err = pidget_xcb_init (&xcb_object);
+  // if (err)
+  //   {
+  //     log_message (3, "Error initializing XCB, pidget.\n");
+  //     return 1;
+  //   }
 
-  err = pidget_xcb_load_image (&lockscreen_xcb_object, png_buffer[0], false);
+  err = pidget_xcb_load_image_on_win (&lockscreen_xcb_object, png_buffer[0],
+                                      false);
   if (err)
     {
       log_message (3, "Error loading image with XCB.\n");
       return 1;
     }
-
-  xcb_map_window (xcb_object.conn, xcb_object.win);
-
-  pidget_set_origin (&xcb_object);
 
   xcb_flush (lockscreen_xcb_object.conn);
 
@@ -117,11 +113,6 @@ launch_pidget_lock (struct PidgetConfigs *pidget_configs, float start_timeout,
   ev_timer_start (loop, &timeout_watcher);
   timeout_watcher.data = pidget_data;
 
-  ev_io_init (&xcb_watcher, xcb_event_cb,
-              xcb_get_file_descriptor (xcb_object.conn), EV_READ);
-  ev_io_start (loop, &xcb_watcher);
-  xcb_watcher.data = pidget_data;
-
   //  ev_signal_init (&signal_watcher, sigint_cb, SIGINT);
   //  ev_signal_start (loop, &signal_watcher);
   //  signal_watcher.data = pidget_data;
@@ -129,7 +120,7 @@ launch_pidget_lock (struct PidgetConfigs *pidget_configs, float start_timeout,
   ev_run (loop, 0);
 
   /* Clean-up */
-  xcb_disconnect (xcb_object.conn);
+  xcb_disconnect (lockscreen_xcb_object.conn);
   ev_loop_destroy (loop);
   free (png_buffer);
 

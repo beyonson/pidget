@@ -16,14 +16,16 @@ typedef struct XcbObject
   xcb_gcontext_t gc;
   xcb_pixmap_t backing_pixmap;
   xcb_screen_t *screen;
+  uint16_t origin_x;
+  uint16_t origin_y;
 } XcbObject;
 
 struct PixelBuffer
 {
-  int width;
-  int height;
-  int bit_depth;
-  int bytes_per_row;
+  uint16_t width;
+  uint16_t height;
+  uint8_t bit_depth;
+  uint16_t bytes_per_row;
   void *pixels;
 };
 
@@ -35,7 +37,7 @@ typedef struct PidgetConfigs
   char *image_path;
   uint8_t images_count;
   char **images;
-  int num_pidgets;
+  uint8_t num_pidgets;
   struct PixelBuffer *png_buffer;
 } PidgetConfigs;
 
